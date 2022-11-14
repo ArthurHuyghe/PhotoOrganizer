@@ -10,7 +10,7 @@ function script:displaysortwindow {
     #Xaml importing
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName PresentationFramework
-    $xamlFile = 'C:\Users\Arthu\Documents\Powershell_folder_automation\sortWindow.xaml'
+    $xamlFile = 'C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\sortWindow.xaml'
     $inputXAML = Get-Content -Path $xamlFile -Raw
     $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
     [XML]$XAML = $inputXAML
@@ -333,7 +333,7 @@ if ($continue -eq 'ja') {
     #progressbar script
     # Build the GUI
     Add-Type -AssemblyName PresentationFramework
-    $xamlFile = 'C:\Users\Arthu\Documents\Powershell_folder_automation\ProgressWindow.xaml'
+    $xamlFile = 'C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\ProgressWindow.xaml'
     $inputXAML = Get-Content -Path $xamlFile -Raw
     $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
     [XML]$XAML = $inputXAML
