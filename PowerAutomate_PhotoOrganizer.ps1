@@ -1,0 +1,1 @@
+﻿PathToScrip -source "PathToSource" -dest "PathToDestination" -format "DateFormat"
