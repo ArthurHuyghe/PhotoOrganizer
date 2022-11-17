@@ -178,79 +178,7 @@ if ($continue -eq 'ja') {
     $Runspace2.Open()
     $Runspace2.SessionStateProxy.SetVariable('syncHash', $syncHash)
     $code = {
-
-        
-            function Sort-Files{
-              param
-              (
-                [Parameter(Mandatory=$true, ValueFromPipeline=$true, HelpMessage='Data to process')]
-                $InputObject
-              )
-              process
-              {
-                
-                            $syncHash.Window.Dispatcher.invoke(
-                                [action] { 
-                                    $syncHash.var_Progress_output.AppendText(("Processing {0} `r`n" -f $InputObject))
-                                    $syncHash.var_Progress_output.ScrollToEnd()
-                                },
-                                'Normal'
-                            )
-                            $date = Get-File-Date -object $InputObject
-                
-                            if ($date) {
-                    
-                                $destinationFolder = Get-Date -Date $date -Format $syncHash.format
-                                $destinationPath = Join-Path -Path $syncHash.dest -ChildPath $destinationFolder   
-                
-                                # See if the destination file exists and rename until we get a unique name
-                                $newFullName = Join-Path -Path $destinationPath -ChildPath $InputObject.Name
-                                if ($InputObject.FullName -eq $newFullName) {
-                                    $syncHash.Window.Dispatcher.invoke(
-                                        [action] { 
-                                            $syncHash.var_Progress_output.AppendText(("Skipping:   {0}, Source file and destination files are at the same location. `r`n" -f $InputObject))
-                                            $syncHash.var_Progress_output.ScrollToEnd()
-                                        },
-                                        'Normal'
-                                    )
-                                    UpdateProgressBar  
-                                    return
-                                }
-                
-                                $newNameIndex = 1
-                                $newName = $InputObject.Name
-                
-                                while (Test-Path -Path $newFullName) {
-                                    $newName = ($InputObject.BaseName + ('_{0}' -f $newNameIndex) + $InputObject.Extension) 
-                                    $newFullName = Join-Path -Path $destinationPath -ChildPath $newName  
-                                    $newNameIndex += 1   
-                                }
-                
-                                # If we have a new name, then we need to rename in current location before moving it.
-                                if ($newNameIndex -gt 1) {
-                                    Rename-Item -Path $InputObject.FullName -NewName $newName
-                                }
-                
-                                $syncHash.Window.Dispatcher.invoke(
-                                    [action] { 
-                                        $syncHash.var_Progress_output.AppendText(("Moving      {0} to {1} `r`n" -f $InputObject, $newFullName))
-                                        $syncHash.var_Progress_output.ScrollToEnd()
-                                    },
-                                    'Normal'
-                                )
-                                # Create the destination directory if it doesn't exist
-                                if (!(Test-Path -Path $destinationPath)) {
-                                    New-Item -ItemType Directory -Force -Path $destinationPath
-                                }
-                
-                                & "$env:windir\system32\robocopy.exe" $InputObject.DirectoryName $destinationPath $newName /mov
-                                UpdateProgressBar
-                            }
-                        
-              }
-            }
-
-      $shell = New-Object -ComObject Shell.Application
+        $shell = New-Object -ComObject Shell.Application
 
         function script:Get-File-Date {
             [CmdletBinding()]
@@ -312,7 +240,63 @@ if ($continue -eq 'ja') {
         }
         
         # start moving proces 
-        Get-ChildItem -Attributes !Directory -Path $syncHash.source -Recurse | Sort-Files
+        Get-ChildItem -Attributes !Directory -Path $syncHash.source -Recurse | ForEach-Object { $syncHash.Window.Dispatcher.invoke(
+                [action] { 
+                    $syncHash.var_Progress_output.AppendText(("Processing {0} `r`n" -f $InputObject))
+                    $syncHash.var_Progress_output.ScrollToEnd()
+                },
+                'Normal'
+            )
+            $date = Get-File-Date -object $InputObject
+            
+            if ($date) {
+                
+                $destinationFolder = Get-Date -Date $date -Format $syncHash.format
+                $destinationPath = Join-Path -Path $syncHash.dest -ChildPath $destinationFolder   
+            
+                # See if the destination file exists and rename until we get a unique name
+                $newFullName = Join-Path -Path $destinationPath -ChildPath $InputObject.Name
+                if ($InputObject.FullName -eq $newFullName) {
+                    $syncHash.Window.Dispatcher.invoke(
+                        [action] { 
+                            $syncHash.var_Progress_output.AppendText(("Skipping:   {0}, Source file and destination files are at the same location. `r`n" -f $InputObject))
+                            $syncHash.var_Progress_output.ScrollToEnd()
+                        },
+                        'Normal'
+                    )
+                    UpdateProgressBar  
+                    return
+                }
+            
+                $newNameIndex = 1
+                $newName = $InputObject.Name
+            
+                while (Test-Path -Path $newFullName) {
+                    $newName = ($InputObject.BaseName + ('_{0}' -f $newNameIndex) + $InputObject.Extension) 
+                    $newFullName = Join-Path -Path $destinationPath -ChildPath $newName  
+                    $newNameIndex += 1   
+                }
+            
+                # If we have a new name, then we need to rename in current location before moving it.
+                if ($newNameIndex -gt 1) {
+                    Rename-Item -Path $InputObject.FullName -NewName $newName
+                }
+            
+                $syncHash.Window.Dispatcher.invoke(
+                    [action] { 
+                        $syncHash.var_Progress_output.AppendText(("Moving      {0} to {1} `r`n" -f $InputObject, $newFullName))
+                        $syncHash.var_Progress_output.ScrollToEnd()
+                    },
+                    'Normal'
+                )
+                # Create the destination directory if it doesn't exist
+                if (!(Test-Path -Path $destinationPath)) {
+                    New-Item -ItemType Directory -Force -Path $destinationPath
+                }
+            
+                & "$env:windir\system32\robocopy.exe" $InputObject.DirectoryName $destinationPath $newName /mov
+                UpdateProgressBar
+            } }
         $syncHash.Window.Dispatcher.invoke(
             [action] {
                 $syncHash.var_task_preforming.Text = 'Klaar!'                 
