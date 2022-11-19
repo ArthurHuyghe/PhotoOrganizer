@@ -96,6 +96,6 @@ Get-ChildItem -Attributes !Directory $source -Recurse | Foreach-Object -Parallel
             New-Item -ItemType Directory -Force -Path $destinationPath
         }
 
-        robocopy $_.DirectoryName $destinationPath $newName /mov
+        robocopy $_.DirectoryName $destinationPath $newName /mov /mt
     }
 }
