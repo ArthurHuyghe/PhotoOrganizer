@@ -1,62 +1,67 @@
 Param(
-    [string]$source, 
-    [string]$dest, 
+    [string]$source = "C:\Users\Arthu\Pictures\Nieuwe map", 
+    [string]$dest = "C:\Users\Arthu\Pictures\Nieuwe map", 
     [string]$format = "yyyy/yyyy_MM/yyyy_MM_dd"
 )
 
 $shell = New-Object -ComObject Shell.Application
 
-function Get-File-Date {
-    [CmdletBinding()]
-    Param (
-        $object
-    )
 
-    $dir = $shell.NameSpace( $object.Directory.FullName )
-    $file = $dir.ParseName( $object.Name )
 
-    # First see if we have Date Taken, which is at index 12
-    $date = Get-Date-Property-Value $dir $file 12
-
-    if ($null -eq $date) {
-        # If we don't have Date Taken, then find the oldest date from all date properties
-        0..287 | ForEach-Object {
-            $name = $dir.GetDetailsof($dir.items, $_)
-
-            if ( $name -match '(date)|(created)') {
-            
-                # Only get value if date field because the GetDetailsOf call is expensive
-                $tmp = Get-Date-Property-Value $dir $file $_
-                if ( ($null -ne $tmp) -and (($null -eq $date) -or ($tmp -lt $date))) {
-                    $date = $tmp
+Get-ChildItem -Attributes !Directory $source -Recurse | Foreach-Object -Parallel {
+    #defining variables for parallel argument
+    function Get_File_Date {
+        [CmdletBinding()]
+        Param (
+            $object
+        )
+    
+        $dir = $shell.NameSpace( $object.Directory.FullName )
+        $file = $dir.ParseName( $object.Name )
+    
+        # First see if we have Date Taken, which is at index 12
+        $date = Get_Date_Property_Value $dir $file 12
+    
+        if ($null -eq $date) {
+            # If we don't have Date Taken, then find the oldest date from all date properties
+            0..287 | ForEach-Object {
+                $name = $dir.GetDetailsof($dir.items, $_)
+    
+                if ( $name -match '(date)|(created)') {
+                
+                    # Only get value if date field because the GetDetailsOf call is expensive
+                    $tmp = Get_Date_Property_Value $dir $file $_
+                    if ( ($null -ne $tmp) -and (($null -eq $date) -or ($tmp -lt $date))) {
+                        $date = $tmp
+                    }
                 }
             }
         }
+        return $date
     }
-    return $date
-}
-
-function Get-Date-Property-Value {
-    [CmdletBinding()]
-
-    Param (
-        $dir,
-        $file,
-        $index
-    )
-
-    $value = ($dir.GetDetailsof($file, $index) -replace "`u{200e}") -replace "`u{200f}"
-    if ($value -and $value -ne '') {
-        return [DateTime]::ParseExact($value, "g", $null)
+    function Get_Date_Property_Value {
+        [CmdletBinding()]
+    
+        Param (
+            $dir,
+            $file,
+            $index
+        )
+    
+        $value = ($dir.GetDetailsof($file, $index) -replace "`u{200e}") -replace "`u{200f}"
+        if ($value -and $value -ne '') {
+            return [DateTime]::ParseExact($value, "g", $null)
+        }
+        return $null
     }
-    return $null
-}
+    $shell = $using:shell
+    $source = $using:source
+    $dest = $using:dest
+    $format = $using:format
 
-Get-ChildItem -Attributes !Directory $source -Recurse | 
-Foreach-Object {
     Write-Host "Processing $_"
 
-    $date = Get-File-Date $_
+    $date = Get_File_Date $_
 
     if ($date) {
     
