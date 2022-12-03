@@ -180,74 +180,76 @@ if ($continue -eq 'ja') {
     $code = {
         $shell = New-Object -ComObject Shell.Application
 
-        function script:Get-File-Date {
-            [CmdletBinding()]
-            Param (
-                $object
-            )
-
-            $dir = $shell.NameSpace( $object.Directory.FullName )
-            $file = $dir.ParseName( $object.Name )
-
-            # First see if we have Date Taken, which is at index 12
-            $date = Get-Date-Property-Value -dir $dir -file $file -index 12
-
-            if ($null -eq $date) {
-                # If we don't have Date Taken, then find the oldest date from all date properties
-                0..287 | ForEach-Object {
-                    $name = $dir.GetDetailsOf($dir.items, $_)
-
-                    if ( $name -match '(date)|(created)') {
-            
-                        # Only get value if date field because the GetDetailsOf call is expensive
-                        $tmp = Get-Date-Property-Value -dir $dir -file $file -index $_
-                        if ( ($null -ne $tmp) -and (($null -eq $date) -or ($tmp -lt $date))) {
-                            $date = $tmp
+        # start moving proces 
+        Get-ChildItem -Attributes !Directory -Path $syncHash.source -Recurse | ForEach-Object -Parallel { 
+            function script:Get_File_Date {
+                [CmdletBinding()]
+                Param (
+                    $object
+                )
+    
+                $dir = $shell.NameSpace( $object.Directory.FullName )
+                $file = $dir.ParseName( $object.Name )
+    
+                # First see if we have Date Taken, which is at index 12
+                $date = Get_Date_Property_Value -dir $dir -file $file -index 12
+    
+                if ($null -eq $date) {
+                    # If we don't have Date Taken, then find the oldest date from all date properties
+                    0..287 | ForEach-Object {
+                        $name = $dir.GetDetailsOf($dir.items, $_)
+    
+                        if ( $name -match '(date)|(created)') {
+                
+                            # Only get value if date field because the GetDetailsOf call is expensive
+                            $tmp = Get_Date_Property_Value -dir $dir -file $file -index $_
+                            if ( ($null -ne $tmp) -and (($null -eq $date) -or ($tmp -lt $date))) {
+                                $date = $tmp
+                            }
                         }
                     }
                 }
+                return $date
             }
-            return $date
-        }
-
-        function script:Get-Date-Property-Value {
-            [CmdletBinding()]
-
-            Param (
-                $dir,
-                $file,
-                $index
-            )
-
-            $value = ($dir.GetDetailsOf($file, $index) -replace "`u{200e}") -replace "`u{200f}"
-            if ($value -and $value -ne '') {
-                return [DateTime]::ParseExact($value, 'g', $null)
+    
+            function script:Get_Date_Property_Value {
+                [CmdletBinding()]
+    
+                Param (
+                    $dir,
+                    $file,
+                    $index
+                )
+    
+                $value = ($dir.GetDetailsOf($file, $index) -replace "`u{200e}") -replace "`u{200f}"
+                if ($value -and $value -ne '') {
+                    return [DateTime]::ParseExact($value, 'g', $null)
+                }
+                return $null
             }
-            return $null
-        }
-
-        function script:UpdateProgressBar {
-            # update progress bar
-            $syncHash.progress_made_nmbr += 1
-            $syncHash.progress_made_percentage = [math]::Round(($syncHash.progress_made_nmbr / $syncHash.files_in_folder) * 100)
+    
+            function script:UpdateProgressBar {
+                # update progress bar
+                $syncHash.progress_made_nmbr += 1
+                $syncHash.progress_made_percentage = [math]::Round(($syncHash.progress_made_nmbr / $syncHash.files_in_folder) * 100)
+                $syncHash.Window.Dispatcher.invoke(
+                    [action] {
+                        $synchash.var_txt_progress.Text = '{0} van de {1}:    {2}%' -f $syncHash.progress_made_nmbr, $syncHash.files_in_folder, $syncHash.progress_made_percentage
+                        $syncHash.var_Progressbar.Value = $synchash.progress_made_nmbr
+                    },
+                    'Normal'
+                )            
+            }
+            $syncHash = $using:syncHash
+            $shell = $using:shell
             $syncHash.Window.Dispatcher.invoke(
-                [action] {
-                    $synchash.var_txt_progress.Text = '{0} van de {1}:    {2}%' -f $syncHash.progress_made_nmbr, $syncHash.files_in_folder, $syncHash.progress_made_percentage
-                    $syncHash.var_Progressbar.Value = $synchash.progress_made_nmbr
-                },
-                'Normal'
-            )            
-        }
-        
-        # start moving proces 
-        Get-ChildItem -Attributes !Directory -Path $syncHash.source -Recurse | ForEach-Object { $syncHash.Window.Dispatcher.invoke(
                 [action] { 
-                    $syncHash.var_Progress_output.AppendText(("Processing {0} `r`n" -f $InputObject))
+                    $syncHash.var_Progress_output.AppendText(("Processing {0} `r`n" -f $_))
                     $syncHash.var_Progress_output.ScrollToEnd()
                 },
                 'Normal'
             )
-            $date = Get-File-Date -object $InputObject
+            $date = Get_File_Date -object $_
             
             if ($date) {
                 
@@ -255,11 +257,11 @@ if ($continue -eq 'ja') {
                 $destinationPath = Join-Path -Path $syncHash.dest -ChildPath $destinationFolder   
             
                 # See if the destination file exists and rename until we get a unique name
-                $newFullName = Join-Path -Path $destinationPath -ChildPath $InputObject.Name
-                if ($InputObject.FullName -eq $newFullName) {
+                $newFullName = Join-Path -Path $destinationPath -ChildPath $_.Name
+                if ($_.FullName -eq $newFullName) {
                     $syncHash.Window.Dispatcher.invoke(
                         [action] { 
-                            $syncHash.var_Progress_output.AppendText(("Skipping:   {0}, Source file and destination files are at the same location. `r`n" -f $InputObject))
+                            $syncHash.var_Progress_output.AppendText(("Skipping:   {0}, Source file and destination files are at the same location. `r`n" -f $_))
                             $syncHash.var_Progress_output.ScrollToEnd()
                         },
                         'Normal'
@@ -269,22 +271,22 @@ if ($continue -eq 'ja') {
                 }
             
                 $newNameIndex = 1
-                $newName = $InputObject.Name
+                $newName = $_.Name
             
                 while (Test-Path -Path $newFullName) {
-                    $newName = ($InputObject.BaseName + ('_{0}' -f $newNameIndex) + $InputObject.Extension) 
+                    $newName = ($_.BaseName + ('_{0}' -f $newNameIndex) + $_.Extension) 
                     $newFullName = Join-Path -Path $destinationPath -ChildPath $newName  
                     $newNameIndex += 1   
                 }
             
                 # If we have a new name, then we need to rename in current location before moving it.
                 if ($newNameIndex -gt 1) {
-                    Rename-Item -Path $InputObject.FullName -NewName $newName
+                    Rename-Item -Path $_.FullName -NewName $newName
                 }
             
                 $syncHash.Window.Dispatcher.invoke(
                     [action] { 
-                        $syncHash.var_Progress_output.AppendText(("Moving      {0} to {1} `r`n" -f $InputObject, $newFullName))
+                        $syncHash.var_Progress_output.AppendText(("Moving      {0} to {1} `r`n" -f $_, $newFullName))
                         $syncHash.var_Progress_output.ScrollToEnd()
                     },
                     'Normal'
@@ -294,7 +296,7 @@ if ($continue -eq 'ja') {
                     New-Item -ItemType Directory -Force -Path $destinationPath
                 }
             
-                & "$env:windir\system32\robocopy.exe" $InputObject.DirectoryName $destinationPath $newName /mov
+                & "$env:windir\system32\robocopy.exe" $_.DirectoryName $destinationPath $newName /mov
                 UpdateProgressBar
             } }
         $syncHash.Window.Dispatcher.invoke(
