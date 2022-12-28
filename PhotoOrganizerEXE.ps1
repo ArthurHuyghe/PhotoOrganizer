@@ -3,13 +3,11 @@
 # // cSpell:words displaysortwindow, dateformat, psform, Borderbrush, errormessage, sortday, temphash, runspaces, pscustomobject, presentationframework
 # // cSpell:words arraylist
 
-Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Windows.Forms, PresentationFramework
 $syncHash = [hashtable]::Synchronized(@{})
 # toont sorting window en controleert parameters
 function script:displaysortwindow {
     #Xaml importing
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName PresentationFramework
     $xamlFile = 'C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\sortWindow.xaml'
     $inputXAML = Get-Content -Path $xamlFile -Raw
     $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
@@ -178,153 +176,153 @@ if ($continue -eq 'ja') {
     $Runspace2.Open()
     $Runspace2.SessionStateProxy.SetVariable('syncHash', $syncHash)
     $code = {
-
-        
-            function Sort-Files{
-              param
-              (
-                [Parameter(Mandatory=$true, ValueFromPipeline=$true, HelpMessage='Data to process')]
-                $InputObject
-              )
-              process
-              {
+        try {
+            function Sort-Files {
+                param
+                (
+                    [Parameter(Mandatory = $true, ValueFromPipeline = $true, HelpMessage = 'Data to process')]
+                    $InputObject
+                )
+                process {
                 
+                    $syncHash.Window.Dispatcher.invoke(
+                        [action] { 
+                            $syncHash.var_Progress_output.AppendText(("Processing {0} `r`n" -f $InputObject))
+                            $syncHash.var_Progress_output.ScrollToEnd()
+                        },
+                        'Normal'
+                    )
+                    $date = Get-File-Date -object $InputObject
+                
+                    if ($date) {
+                    
+                        $destinationFolder = Get-Date -Date $date -Format $syncHash.format
+                        $destinationPath = Join-Path -Path $syncHash.dest -ChildPath $destinationFolder   
+                
+                        # See if the destination file exists and rename until we get a unique name
+                        $newFullName = Join-Path -Path $destinationPath -ChildPath $InputObject.Name
+                        if ($InputObject.FullName -eq $newFullName) {
                             $syncHash.Window.Dispatcher.invoke(
                                 [action] { 
-                                    $syncHash.var_Progress_output.AppendText(("Processing {0} `r`n" -f $InputObject))
+                                    $syncHash.var_Progress_output.AppendText(("Skipping:   {0}, Source file and destination files are at the same location. `r`n" -f $InputObject))
                                     $syncHash.var_Progress_output.ScrollToEnd()
                                 },
                                 'Normal'
                             )
-                            $date = Get-File-Date -object $InputObject
+                            UpdateProgressBar  
+                            return
+                        }
                 
-                            if ($date) {
-                    
-                                $destinationFolder = Get-Date -Date $date -Format $syncHash.format
-                                $destinationPath = Join-Path -Path $syncHash.dest -ChildPath $destinationFolder   
+                        $newNameIndex = 1
+                        $newName = $InputObject.Name
                 
-                                # See if the destination file exists and rename until we get a unique name
-                                $newFullName = Join-Path -Path $destinationPath -ChildPath $InputObject.Name
-                                if ($InputObject.FullName -eq $newFullName) {
-                                    $syncHash.Window.Dispatcher.invoke(
-                                        [action] { 
-                                            $syncHash.var_Progress_output.AppendText(("Skipping:   {0}, Source file and destination files are at the same location. `r`n" -f $InputObject))
-                                            $syncHash.var_Progress_output.ScrollToEnd()
-                                        },
-                                        'Normal'
-                                    )
-                                    UpdateProgressBar  
-                                    return
-                                }
+                        while (Test-Path -Path $newFullName) {
+                            $newName = ($InputObject.BaseName + ('_{0}' -f $newNameIndex) + $InputObject.Extension) 
+                            $newFullName = Join-Path -Path $destinationPath -ChildPath $newName  
+                            $newNameIndex += 1   
+                        }
                 
-                                $newNameIndex = 1
-                                $newName = $InputObject.Name
+                        # If we have a new name, then we need to rename in current location before moving it.
+                        if ($newNameIndex -gt 1) {
+                            Rename-Item -Path $InputObject.FullName -NewName $newName
+                        }
                 
-                                while (Test-Path -Path $newFullName) {
-                                    $newName = ($InputObject.BaseName + ('_{0}' -f $newNameIndex) + $InputObject.Extension) 
-                                    $newFullName = Join-Path -Path $destinationPath -ChildPath $newName  
-                                    $newNameIndex += 1   
-                                }
+                        $syncHash.Window.Dispatcher.invoke(
+                            [action] { 
+                                $syncHash.var_Progress_output.AppendText(("Moving      {0} to {1} `r`n" -f $InputObject, $newFullName))
+                                $syncHash.var_Progress_output.ScrollToEnd()
+                            },
+                            'Normal'
+                        )
+                        # Create the destination directory if it doesn't exist
+                        if (!(Test-Path -Path $destinationPath)) {
+                            New-Item -ItemType Directory -Force -Path $destinationPath
+                        }
                 
-                                # If we have a new name, then we need to rename in current location before moving it.
-                                if ($newNameIndex -gt 1) {
-                                    Rename-Item -Path $InputObject.FullName -NewName $newName
-                                }
-                
-                                $syncHash.Window.Dispatcher.invoke(
-                                    [action] { 
-                                        $syncHash.var_Progress_output.AppendText(("Moving      {0} to {1} `r`n" -f $InputObject, $newFullName))
-                                        $syncHash.var_Progress_output.ScrollToEnd()
-                                    },
-                                    'Normal'
-                                )
-                                # Create the destination directory if it doesn't exist
-                                if (!(Test-Path -Path $destinationPath)) {
-                                    New-Item -ItemType Directory -Force -Path $destinationPath
-                                }
-                
-                                & "$env:windir\system32\robocopy.exe" $InputObject.DirectoryName $destinationPath $newName /mov
-                                UpdateProgressBar
-                            }
+                        & "$env:windir\system32\robocopy.exe" $InputObject.DirectoryName $destinationPath $newName /mov
+                        UpdateProgressBar
+                    }
                         
-              }
+                }
             }
 
-      $shell = New-Object -ComObject Shell.Application
+            $shell = New-Object -ComObject Shell.Application
 
-        function script:Get-File-Date {
-            [CmdletBinding()]
-            Param (
-                $object
-            )
+            function script:Get-File-Date {
+                [CmdletBinding()]
+                Param (
+                    $object
+                )
 
-            $dir = $shell.NameSpace( $object.Directory.FullName )
-            $file = $dir.ParseName( $object.Name )
+                $dir = $shell.NameSpace( $object.Directory.FullName )
+                $file = $dir.ParseName( $object.Name )
 
-            # First see if we have Date Taken, which is at index 12
-            $date = Get-Date-Property-Value -dir $dir -file $file -index 12
+                # First see if we have Date Taken, which is at index 12
+                $date = Get-Date-Property-Value -dir $dir -file $file -index 12
 
-            if ($null -eq $date) {
-                # If we don't have Date Taken, then find the oldest date from all date properties
-                0..287 | ForEach-Object {
-                    $name = $dir.GetDetailsOf($dir.items, $_)
+                if ($null -eq $date) {
+                    # If we don't have Date Taken, then find the oldest date from all date properties
+                    0..287 | ForEach-Object {
+                        $name = $dir.GetDetailsOf($dir.items, $_)
 
-                    if ( $name -match '(date)|(created)') {
+                        if ( $name -match '(date)|(created)') {
             
-                        # Only get value if date field because the GetDetailsOf call is expensive
-                        $tmp = Get-Date-Property-Value -dir $dir -file $file -index $_
-                        if ( ($null -ne $tmp) -and (($null -eq $date) -or ($tmp -lt $date))) {
-                            $date = $tmp
+                            # Only get value if date field because the GetDetailsOf call is expensive
+                            $tmp = Get-Date-Property-Value -dir $dir -file $file -index $_
+                            if ( ($null -ne $tmp) -and (($null -eq $date) -or ($tmp -lt $date))) {
+                                $date = $tmp
+                            }
                         }
                     }
                 }
+                return $date
             }
-            return $date
-        }
 
-        function script:Get-Date-Property-Value {
-            [CmdletBinding()]
+            function script:Get-Date-Property-Value {
+                [CmdletBinding()]
 
-            Param (
-                $dir,
-                $file,
-                $index
-            )
+                Param (
+                    $dir,
+                    $file,
+                    $index
+                )
 
-            $value = ($dir.GetDetailsOf($file, $index) -replace "`u{200e}") -replace "`u{200f}"
-            if ($value -and $value -ne '') {
-                return [DateTime]::ParseExact($value, 'g', $null)
+                $value = ($dir.GetDetailsOf($file, $index) -replace "`u{200e}") -replace "`u{200f}"
+                if ($value -and $value -ne '') {
+                    return [DateTime]::ParseExact($value, 'g', $null)
+                }
+                return $null
             }
-            return $null
-        }
 
-        function script:UpdateProgressBar {
-            # update progress bar
-            $syncHash.progress_made_nmbr += 1
-            $syncHash.progress_made_percentage = [math]::Round(($syncHash.progress_made_nmbr / $syncHash.files_in_folder) * 100)
+            function script:UpdateProgressBar {
+                # update progress bar
+                $syncHash.progress_made_nmbr += 1
+                $syncHash.progress_made_percentage = [math]::Round(($syncHash.progress_made_nmbr / $syncHash.files_in_folder) * 100)
+                $syncHash.Window.Dispatcher.invoke(
+                    [action] {
+                        $synchash.var_txt_progress.Text = '{0} van de {1}:    {2}%' -f $syncHash.progress_made_nmbr, $syncHash.files_in_folder, $syncHash.progress_made_percentage
+                        $syncHash.var_Progressbar.Value = $synchash.progress_made_nmbr
+                    },
+                    'Normal'
+                )            
+            }
+        
+            # start moving proces 
+            Get-ChildItem -Attributes !Directory -Path $syncHash.source -Recurse | Sort-Files
             $syncHash.Window.Dispatcher.invoke(
                 [action] {
-                    $synchash.var_txt_progress.Text = '{0} van de {1}:    {2}%' -f $syncHash.progress_made_nmbr, $syncHash.files_in_folder, $syncHash.progress_made_percentage
-                    $syncHash.var_Progressbar.Value = $synchash.progress_made_nmbr
+                    $syncHash.var_task_preforming.Text = 'Klaar!'                 
                 },
                 'Normal'
-            )            
+            )
         }
-        
-        # start moving proces 
-        Get-ChildItem -Attributes !Directory -Path $syncHash.source -Recurse | Sort-Files
-        $syncHash.Window.Dispatcher.invoke(
-            [action] {
-                $syncHash.var_task_preforming.Text = 'Klaar!'                 
-            },
-            'Normal'
-        )
-        # cleans the runspace after its closed
-        $syncHash.Error = $Error
-        $job2_done = $Runspace2.EndInvoke()
-        $Runspace2.Close()
-        $Runspace2.Dispose()
-
+        finally {
+            # cleans the runspace after its closed
+            $syncHash.Error = $Error
+            $job2_done = $Runspace2.EndInvoke()
+            $Runspace2.Close()
+            $Runspace2.Dispose()
+        }
     }
     $PSinstance2 = [powershell]::Create().AddScript($Code)
     $PSinstance2.Runspace = $Runspace2
@@ -332,7 +330,6 @@ if ($continue -eq 'ja') {
 
     #progressbar script
     # Build the GUI
-    Add-Type -AssemblyName PresentationFramework
     $xamlFile = 'C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\ProgressWindow.xaml'
     $inputXAML = Get-Content -Path $xamlFile -Raw
     $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
