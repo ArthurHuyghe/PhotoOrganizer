@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfApp5"
         mc:Ignorable="d"
-        Title="PhotoOrganizer - aan het sorteren" Height="455" Width="551" WindowStartupLocation="CenterScreen" Cursor="AppStarting" Icon="C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\PhotoOrganizer.ico" ResizeMode="NoResize">
+        Title="PhotoOrganizer - aan het sorteren..." Height="455" Width="551" WindowStartupLocation="CenterScreen" Cursor="AppStarting" Icon="C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\PhotoOrganizer_v2(gekleurd).ico" ResizeMode="NoResize">
     <Grid>
         <ProgressBar Name="Progressbar" HorizontalAlignment="Left" Height="15" VerticalAlignment="Top" Width="400" Margin="20,44,0,0" Maximum="100" Value="0"/>
         <TextBlock Name="task_preforming" HorizontalAlignment="Left" Margin="19,0,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="200" FontSize="16" Text="Aan het sorteren..."/>

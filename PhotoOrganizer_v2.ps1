@@ -342,7 +342,8 @@ if ($continue -eq 'ja') {
     }
     $syncHash.Window.Dispatcher.invoke(
         [action] {
-            $syncHash.var_task_preforming.Text = 'Klaar!'                 
+            $syncHash.var_task_preforming.Text = 'Klaar!' 
+            $syncHash.Window.Title = 'PhotoOrganizer - Klaar!'                
         },
         'Normal'
     )
