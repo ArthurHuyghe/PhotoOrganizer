@@ -6,8 +6,8 @@
         Obfuscate = $false
         HideConsoleWindow = $false
         DotNetVersion = 'net6.0'
-        FileVersion = '2.0.0'
-        FileDescription = ''
+        FileVersion = '2.0.1'
+        FileDescription = 'program to sort images based on date taken'
         ProductName = 'PhotoOrganizer'
         ProductVersion = 'v2'
         Copyright = 'Arthur Huyghe'

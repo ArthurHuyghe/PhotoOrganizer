@@ -5,10 +5,28 @@
 
 Add-Type -AssemblyName System.Windows.Forms, PresentationFramework
 $syncHash = [hashtable]::Synchronized(@{})
+function Get-Resource {
+    param($Name)
+    
+    $ProcessName = (Get-Process -Id $PID).Name
+    try {
+        $Stream = [System.Reflection.Assembly]::GetEntryAssembly().GetManifestResourceStream("$ProcessName.g.resources")
+        $KV = [System.Resources.ResourceReader]::new($Stream) | Where-Object Key -EQ $Name
+        $Stream = $KV.Value
+    }
+    catch {}
+
+    if (-not $Stream) {
+        $Stream = [IO.File]::OpenRead("$PSScriptRoot\$Name")
+    }
+
+    $Stream
+}
 # toont sorting window en controleert parameters
 function script:displaysortwindow {
     #Xaml importing
-    $xamlFile = 'sortWindow.xaml'
+    $xamlFile = Get-Resource -Name 'sortWindow.xaml'
+    $xamlFile = $xamlFile.Name
     $inputXAML = Get-Content -Path $xamlFile -Raw
     $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
     [XML]$XAML = $inputXAML
@@ -116,7 +134,7 @@ function script:displaysortwindow {
             if ($error_source_folder -eq 'ja') {
                 $var_txt_source_folder.Borderbrush = '#FFABADB3' 
             }
-            if (($error_source_folder -eq 'nee') -and {$error_dest_folder -eq 'nee'}) {
+            if (($error_source_folder -eq 'nee') -and { $error_dest_folder -eq 'nee' }) {
                 $var_errormessage.visibility = 'Hidden'
             }
             $script:error_source_folder = 'nee'
@@ -148,7 +166,13 @@ function script:displaysortwindow {
             $dest_folder.ShowDialog()
             $var_txt_dest_folder.Text = $dest_folder.SelectedPath
         })
-
+    # add icon
+    $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+    $bitmap.BeginInit()
+    $bitmap.StreamSource = Get-Resource -Name "PhotoOrganizer_v2(gekleurd).ico"
+    $bitmap.EndInit()
+    $bitmap.Freeze()
+    $psform.icon = $bitmap
     # show dialog
     $psform.Activate()
     $psform.ShowDialog()    
@@ -169,6 +193,16 @@ if ($continue -eq 'ja') {
     $syncHash.Add('source', $path_source_folder)
     $syncHash.Add('dest', $path_dest_folder)
     $syncHash.Add('format', $dateformat_combobox)
+    # add icon and xaml to synchash
+    $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+    $bitmap.BeginInit()
+    $bitmap.StreamSource = Get-Resource -Name "PhotoOrganizer_v2(gekleurd).ico"
+    $bitmap.EndInit()
+    $bitmap.Freeze()
+    $syncHash.Add('bitmap', $bitmap)
+    $xamlFile = Get-Resource -Name 'ProgressWindow.xaml'
+    $xamlFile = $xamlFile.Name
+    $syncHash.Add('xamlFile', $xamlFile)
 
     #gui to different thread
     $newRunspace = [runspacefactory]::CreateRunspace()
@@ -180,12 +214,10 @@ if ($continue -eq 'ja') {
             try {
                 #progressbar script
                 # Build the GUI
-                $xamlFile = 'ProgressWindow.xaml'
-                $inputXAML = Get-Content -Path $xamlFile -Raw
+                $inputXAML = Get-Content -Path $syncHash.xamlFile -Raw
                 $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
                 [XML]$XAML = $inputXAML
 
-    
                 $reader = (New-Object -TypeName System.Xml.XmlNodeReader -ArgumentList $xaml)
                 $syncHash.Window = [Windows.Markup.XamlReader]::Load( $reader )
                 # Load al the variables in the hashtable
@@ -203,7 +235,9 @@ if ($continue -eq 'ja') {
                 $synchash.var_txt_progress.Text = '{0} van de {1}:    {2}%' -f $synchash.progress_made_nmbr, $synchash.files_in_folder, $synchash.progress_made_percentage
                 $syncHash.var_Progressbar.Maximum = $syncHash.files_in_folder
                 $syncHash.var_Progressbar.Value = 0        
-        
+                
+                # add icon
+                $syncHash.Window.icon = $syncHash.bitmap
                 # shows the form 
                 $syncHash.window.Activate()
                 $syncHash.Window.ShowDialog()
@@ -280,7 +314,7 @@ if ($continue -eq 'ja') {
             'Normal'
         )            
     }
-    Start-Sleep -Milliseconds 1
+    Start-Sleep -Milliseconds 6
     Get-ChildItem -Attributes !Directory $syncHash.source -Recurse | 
     Foreach-Object {
 

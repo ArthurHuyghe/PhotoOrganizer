@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfApp1"
-        Title="Photo Organizer" Height="270" Width="491" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" Cursor="AppStarting" Icon="C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\icons PhotoOrganizer\PhotoOrganizer_v2(gekleurd).ico" >
+        Title="Photo Organizer" Height="270" Width="491" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" Cursor="AppStarting" >
     <Grid Margin="10,10,10,10">
         <TextBlock HorizontalAlignment="Left" Margin="10,10,0,0" TextWrapping="Wrap" Text="Selecteer de te sorteren map:" VerticalAlignment="Top" Height="30" Width="250" FontSize="16"/>
         <TextBox Name="txt_source_folder" HorizontalAlignment="Left" Margin="10,40,0,0" TextWrapping="NoWrap" VerticalAlignment="Top" Width="360" FontSize="14" MaxLines="1"/>
