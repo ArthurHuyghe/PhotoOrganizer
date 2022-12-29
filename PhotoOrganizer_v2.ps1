@@ -8,7 +8,7 @@ $syncHash = [hashtable]::Synchronized(@{})
 # toont sorting window en controleert parameters
 function script:displaysortwindow {
     #Xaml importing
-    $xamlFile = 'C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\sortWindow.xaml'
+    $xamlFile = 'sortWindow.xaml'
     $inputXAML = Get-Content -Path $xamlFile -Raw
     $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
     [XML]$XAML = $inputXAML
@@ -73,6 +73,7 @@ function script:displaysortwindow {
             # get parameters
             $script:path_source_folder = $var_txt_source_folder.Text
             $script:path_dest_folder = $var_txt_dest_folder.Text
+            $script:dateformat_combobox = $var_dateformat.SelectedItem
             # parameter controle
             if (
                 $path_source_folder -and $path_dest_folder -and
@@ -110,11 +111,12 @@ function script:displaysortwindow {
             # get parameters
             $script:path_source_folder = $var_txt_source_folder.Text
             $script:path_dest_folder = $var_txt_dest_folder.Text
+            $script:dateformat_combobox = $var_dateformat.SelectedItem
             # parameter controle
             if ($error_source_folder -eq 'ja') {
                 $var_txt_source_folder.Borderbrush = '#FFABADB3' 
             }
-            if ($error_source_folder -eq 'nee' -and $error_dest_folder -eq 'nee') {
+            if (($error_source_folder -eq 'nee') -and {$error_dest_folder -eq 'nee'}) {
                 $var_errormessage.visibility = 'Hidden'
             }
             $script:error_source_folder = 'nee'
@@ -178,7 +180,7 @@ if ($continue -eq 'ja') {
             try {
                 #progressbar script
                 # Build the GUI
-                $xamlFile = 'C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\ProgressWindow.xaml'
+                $xamlFile = 'ProgressWindow.xaml'
                 $inputXAML = Get-Content -Path $xamlFile -Raw
                 $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
                 [XML]$XAML = $inputXAML
