@@ -166,6 +166,10 @@ function script:displaysortwindow {
             $dest_folder.ShowDialog()
             $var_txt_dest_folder.Text = $dest_folder.SelectedPath
         })
+    # clean up checkbox
+    $Script:CleanFolders = 'nee'
+    $var_clean_up.Add_Checked({ $Script:CleanFolders = 'ja' })
+    $var_clean_up.Add_UnChecked({ $Script:CleanFolders = 'nee' })
     # add icon
     $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
     $bitmap.BeginInit()
@@ -186,6 +190,7 @@ parameters voor in te vullen bij het script zijn:
     $path_source_folder
     $path_dest_folder
     $dateformat_combobox
+    $CleanFolders
 #>
 # controleert of script uitgevoerd mag worden
 if ($continue -eq 'ja') {
@@ -205,12 +210,12 @@ if ($continue -eq 'ja') {
     $syncHash.Add('xamlFile', $xamlFile)
 
     #gui to different thread
-    $newRunspace = [runspacefactory]::CreateRunspace()
-    $newRunspace.ApartmentState = "STA"
-    $newRunspace.ThreadOptions = "ReuseThread"         
-    $newRunspace.Open()
-    $newRunspace.SessionStateProxy.SetVariable("syncHash", $syncHash)          
-    $psCmd = [PowerShell]::Create().AddScript({
+    $Runspace = [runspacefactory]::CreateRunspace()
+    $Runspace.ApartmentState = "STA"
+    $Runspace.ThreadOptions = "ReuseThread"         
+    $Runspace.Open()
+    $Runspace.SessionStateProxy.SetVariable("syncHash", $syncHash)          
+    $PowerShell = [PowerShell]::Create().AddScript({
             try {
                 #progressbar script
                 # Build the GUI
@@ -243,15 +248,12 @@ if ($continue -eq 'ja') {
                 $syncHash.Window.ShowDialog()
             }
             finally {
-                # cleans the runspace after its closed
+                # save all the errors that have happend
                 $syncHash.Error = $Error
-                $data_end = $psCmd.EndInvoke()
-                $psCmd.Close()
-                $psCmd.Dispose()
             }
         })
-    $psCmd.Runspace = $newRunspace
-    $data = $psCmd.BeginInvoke()
+    $PowerShell.Runspace = $Runspace
+    $Job = $PowerShell.BeginInvoke()
 
     # sorting script
     $shell = New-Object -ComObject Shell.Application
@@ -314,7 +316,6 @@ if ($continue -eq 'ja') {
             'Normal'
         )            
     }
-    Start-Sleep -Milliseconds 6
     Get-ChildItem -Attributes !Directory $syncHash.source -Recurse | 
     Foreach-Object {
 
@@ -376,6 +377,65 @@ if ($continue -eq 'ja') {
             UpdateProgressBar
         }
     }
+    if ($CleanFolders -eq 'ja') {
+        $syncHash.Window.Dispatcher.invoke(
+            [action] {
+                $syncHash.var_task_preforming.Text = 'Cleaning up empty folders...' 
+                $syncHash.Window.Title = 'Cleaning up empty folders...'                
+            },
+            'Normal'
+        )
+        if ($path_source_folder -ne $path_dest_folder) {
+            Get-ChildItem -Attributes !Directory $path_source_folder -Recurse | 
+            Foreach-Object {
+                if ($_.DirectoryName -eq $path_source_folder) {
+                    Write-verbose "Skipping: file is already in the right folder. $_"  -Verbose 
+                    $syncHash.Window.Dispatcher.invoke(
+                        [action] {
+                            $syncHash.var_Progress_output.AppendText(("Skipping: file is already in the right folder. $_ `r`n"))
+                            $syncHash.var_Progress_output.ScrollToEnd()
+                        },
+                        'Normal'
+                    )
+                    return
+                }
+                robocopy $_.DirectoryName $path_source_folder $_.Name /mov /mt
+            }
+        }
+
+        $tailRecursion = {
+            param(
+                $Path
+            )
+            foreach ($childDirectory in Get-ChildItem -Force -LiteralPath $Path -Directory) {
+                & $tailRecursion -Path $childDirectory.FullName
+            }
+            $currentChildren = Get-ChildItem -Force -LiteralPath $Path
+            $isEmpty = $currentChildren -eq $null
+            if ($isEmpty -and ($Path -ne $path_source_folder)) {     
+                Write-Verbose "Removing empty folder at path '${Path}'." -Verbose
+                $syncHash.Window.Dispatcher.invoke(
+                    [action] {
+                        $syncHash.var_Progress_output.AppendText(("Removing empty folder at path '${Path}'.`r`n"))
+                        $syncHash.var_Progress_output.ScrollToEnd()
+                    },
+                    'Normal'
+                )
+                Remove-Item -Force -LiteralPath $Path
+            }
+            else {
+                Write-Verbose "Not an empty folder: $Path" -Verbose
+                $syncHash.Window.Dispatcher.invoke(
+                    [action] {
+                        $syncHash.var_Progress_output.AppendText(("Not an empty folder: $Path`r`n"))
+                        $syncHash.var_Progress_output.ScrollToEnd()
+                    },
+                    'Normal'
+                )
+            }
+        }
+        & $tailRecursion -Path $path_source_folder 
+    }
     $syncHash.Window.Dispatcher.invoke(
         [action] {
             $syncHash.var_task_preforming.Text = 'Klaar!' 
@@ -383,4 +443,7 @@ if ($continue -eq 'ja') {
         },
         'Normal'
     )
+    $PowerShell.EndInvoke($Job)
+    $Runspace.Dispose()
+    $PowerShell.Dispose()
 }
