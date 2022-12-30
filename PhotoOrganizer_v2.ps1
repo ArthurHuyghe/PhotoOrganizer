@@ -170,6 +170,7 @@ function script:displaysortwindow {
     $Script:CleanFolders = 'nee'
     $var_clean_up.Add_Checked({ $Script:CleanFolders = 'ja' })
     $var_clean_up.Add_UnChecked({ $Script:CleanFolders = 'nee' })
+
     # add icon
     $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
     $bitmap.BeginInit()
@@ -177,6 +178,7 @@ function script:displaysortwindow {
     $bitmap.EndInit()
     $bitmap.Freeze()
     $psform.icon = $bitmap
+
     # show dialog
     $psform.Activate()
     $psform.ShowDialog()    
@@ -208,6 +210,7 @@ if ($continue -eq 'ja') {
     $xamlFile = Get-Resource -Name 'ProgressWindow.xaml'
     $xamlFile = $xamlFile.Name
     $syncHash.Add('xamlFile', $xamlFile)
+    $syncHash.Add('running', 'ja')
 
     #gui to different thread
     $Runspace = [runspacefactory]::CreateRunspace()
@@ -241,8 +244,16 @@ if ($continue -eq 'ja') {
                 $syncHash.var_Progressbar.Maximum = $syncHash.files_in_folder
                 $syncHash.var_Progressbar.Value = 0        
                 
+                # prevent window from closing while sorting is running
+                $syncHash.Window.Add_closing({
+                    if ($syncHash.running -eq 'ja') {
+                        $_.cancel = $true
+                        $syncHash.var_error.visibility = 'visible'
+                    }
+                })
                 # add icon
                 $syncHash.Window.icon = $syncHash.bitmap
+
                 # shows the form 
                 $syncHash.window.Activate()
                 $syncHash.Window.ShowDialog()
@@ -443,6 +454,7 @@ if ($continue -eq 'ja') {
         },
         'Normal'
     )
+    $syncHash.running = 'nee'
     $PowerShell.EndInvoke($Job)
     $Runspace.Dispose()
     $PowerShell.Dispose()
