@@ -3,9 +3,18 @@
 # // cSpell:words displaysortwindow, dateformat, psform, Borderbrush, errormessage, sortday, temphash, runspaces, pscustomobject, presentationframework
 # // cSpell:words arraylist
 
-Add-Type -AssemblyName System.Windows.Forms, PresentationFramework
+Add-Type -AssemblyName System.Windows.Forms, PresentationFramework, System.Reflection
 $syncHash = [hashtable]::Synchronized(@{})
-function Get-Resource {
+function Get-ResourceAsString {
+    param($Name)
+
+    $ProcessName = (Get-Process -Id $PID).Name
+    $Stream = [System.Reflection.Assembly]::GetEntryAssembly().GetManifestResourceStream("$ProcessName.g.resources")
+    $KV = [System.Resources.ResourceReader]::new($Stream) | Where-Object Key -EQ $Name
+    [System.IO.StreamReader]::new($KV.Value).ReadToEnd()
+}
+
+function Get-ResourceAsStream {
     param($Name)
     
     $ProcessName = (Get-Process -Id $PID).Name
@@ -22,12 +31,15 @@ function Get-Resource {
 
     $Stream
 }
+
 # toont sorting window en controleert parameters
 function script:displaysortwindow {
     #Xaml importing
-    $xamlFile = Get-Resource -Name 'sortWindow.xaml'
-    $xamlFile = $xamlFile.Name
-    $inputXAML = Get-Content -Path $xamlFile -Raw
+    
+    $inputXAML = Get-ResourceAsString -Name 'sortWindow.xaml'
+    if (-not $inputXAML) {
+        $inputXAML = get-content "$PSScriptRoot\sortWindow.xaml"
+    }
     $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
     [XML]$XAML = $inputXAML
 
@@ -174,9 +186,10 @@ function script:displaysortwindow {
     # add icon
     $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
     $bitmap.BeginInit()
-    $bitmap.StreamSource = Get-Resource -Name "PhotoOrganizer_v2(gekleurd).ico"
+    $bitmap.StreamSource = Get-ResourceAsStream -Name "PhotoOrganizer_v2(gekleurd).ico"
     $bitmap.EndInit()
     $bitmap.Freeze()
+    $syncHash.Add('bitmap', $bitmap)
     $psform.icon = $bitmap
 
     # show dialog
@@ -200,15 +213,11 @@ if ($continue -eq 'ja') {
     $syncHash.Add('source', $path_source_folder)
     $syncHash.Add('dest', $path_dest_folder)
     $syncHash.Add('format', $dateformat_combobox)
-    # add icon and xaml to synchash
-    $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-    $bitmap.BeginInit()
-    $bitmap.StreamSource = Get-Resource -Name "PhotoOrganizer_v2(gekleurd).ico"
-    $bitmap.EndInit()
-    $bitmap.Freeze()
-    $syncHash.Add('bitmap', $bitmap)
-    $xamlFile = Get-Resource -Name 'ProgressWindow.xaml'
-    $xamlFile = $xamlFile.Name
+    # add  xaml to syncHash  
+    $xamlFile = Get-ResourceAsString -Name 'ProgressWindow.xaml'
+    if (-not $xamlFile) {
+        $xamlFile = get-content "$PSScriptRoot\ProgressWindow.xaml"
+    }
     $syncHash.Add('xamlFile', $xamlFile)
     $syncHash.Add('running', 'ja')
 
@@ -222,7 +231,7 @@ if ($continue -eq 'ja') {
             try {
                 #progressbar script
                 # Build the GUI
-                $inputXAML = Get-Content -Path $syncHash.xamlFile -Raw
+                $inputXAML = $syncHash.xamlFile
                 $inputXAML = $inputXAML -replace 'mc:Ignorable="d"', '' -replace 'x:N', 'N' -replace '^<Win.*', '<Window'
                 [XML]$XAML = $inputXAML
 
@@ -246,11 +255,11 @@ if ($continue -eq 'ja') {
                 
                 # prevent window from closing while sorting is running
                 $syncHash.Window.Add_closing({
-                    if ($syncHash.running -eq 'ja') {
-                        $_.cancel = $true
-                        $syncHash.var_error.visibility = 'visible'
-                    }
-                })
+                        if ($syncHash.running -eq 'ja') {
+                            $_.cancel = $true
+                            $syncHash.var_error.visibility = 'visible'
+                        }
+                    })
                 # add icon
                 $syncHash.Window.icon = $syncHash.bitmap
 
