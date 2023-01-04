@@ -4,10 +4,10 @@
     Package = @{
         Enabled = $true
         Obfuscate = $false
-        HideConsoleWindow = $false
+        HideConsoleWindow = $true
         DotNetVersion = 'net6.0'
-        FileVersion = '2.0.1'
-        FileDescription = 'program to sort images based on date taken'
+        FileVersion = '2.1.1'
+        FileDescription = 'Program to sort images based on date taken.'
         ProductName = 'PhotoOrganizer'
         ProductVersion = 'v2'
         Copyright = 'Arthur Huyghe'
@@ -16,7 +16,7 @@
         PackageType = 'Console'
         HighDPISupport = $true
         PowerShellVersion = '7.2.6'
-        Resources = [string[]]@('PhotoOrganizer_v2(gekleurd).ico', 'sortWindow.xaml', 'ProgressWindow.xaml')
+        Resources = [string[]]@("PhotoOrganizer_v2(gekleurd).ico", "sortWindow.xaml", "ProgressWindow.xaml")
     }
     Bundle = @{
         Enabled = $true
