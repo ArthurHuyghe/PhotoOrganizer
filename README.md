@@ -23,11 +23,13 @@ To use this script, you will need the following:
 
 Follow these steps to use the script:
 
-1. **Run the Script**: Simply execute the script by running it with PowerShell from within the folder the script is placed.
+1. **Run the Script**: Simply execute the script by running it with PowerShell from within the folder the script and its dependencies are placed.
 
    ```powershell
-   .\PhotoOrganizer.ps1
+   .\PhotoOrganizer_v2.ps1
    ```
+
+   If you want a simple executable you could place anywhere and run just like any other program please open an issue or contact me and I'll send you the .exe file, since github does not allow me to upload the exe.
 
 2. **Graphical User Interface (GUI)**: The script will launch a GUI where you can specify the following options:
 
