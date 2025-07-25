@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ProgressWindow</class>
+ <widget class="QWidget" name="ProgressWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>500</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Sorting Progress</string>
+  </property>
+
+  <layout class="QVBoxLayout" name="verticalLayout">
+
+   <!-- Speed + ProgressBar -->
+   <item>
+    <widget class="QProgressBar" name="progressBar">
+     <property name="minimum">
+      <number>0</number>
+     </property>
+     <property name="maximum">
+      <number>100</number>
+     </property>
+     <property name="value">
+      <number>0</number>
+     </property>
+     <property name="format">
+      <string>%p% - 0 files/sec</string>
+     </property>
+     <property name="textVisible">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+
+   <!-- Sorted / Remaining -->
+   <item>
+    <layout class="QHBoxLayout" name="statsLayout">
+     <item>
+      <widget class="QLabel" name="labelSorted">
+       <property name="text">
+        <string>✅ Sorted: 0</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="labelRemaining">
+       <property name="text">
+        <string>⌛ Remaining: 0</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+
+   <!-- Log Output -->
+   <item>
+    <widget class="QGroupBox" name="groupBoxLogs">
+     <property name="title">
+      <string>📝 Log Output</string>
+     </property>
+     <layout class="QVBoxLayout" name="logLayout">
+      <item>
+       <widget class="QPlainTextEdit" name="plainTextEditLogs">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">
+          QPlainTextEdit {
+              background-color: #f9f9f9;
+              border: 1px solid #ccc;
+              font-family: Consolas;
+          }
+         </string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ImageSorter</class>
+ <widget class="QWidget" name="ImageSorter">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Image Sorting Tool</string>
+  </property>
+
+  <layout class="QVBoxLayout" name="mainLayout">
+   
+   <!-- Source Folder -->
+   <item>
+    <layout class="QHBoxLayout" name="sourceLayout">
+     <item>
+      <widget class="QLabel" name="labelSource">
+       <property name="text">
+        <string>📂 Source Folder:</string>
+       </property>
+       <property name="minimumWidth">
+        <number>120</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEditSource"/>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnBrowseSource">
+       <property name="text">
+        <string>Browse…</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+
+   <!-- Destination Folder -->
+   <item>
+    <layout class="QHBoxLayout" name="destinationLayout">
+     <item>
+      <widget class="QLabel" name="labelDestination">
+       <property name="text">
+        <string>📁 Destination Folder:</string>
+       </property>
+       <property name="minimumWidth">
+        <number>120</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEditDestination"/>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnBrowseDestination">
+       <property name="text">
+        <string>Browse…</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+
+   <!-- Options Group -->
+   <item>
+    <widget class="QGroupBox" name="groupBoxOptions">
+     <property name="title">
+      <string>Sorting Options</string>
+     </property>
+     <layout class="QVBoxLayout" name="optionsLayout">
+      <item>
+       <widget class="QCheckBox" name="checkBoxSortByDay">
+        <property name="text">
+         <string>📅 Sort into subfolders by day</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxRemoveEmpty">
+        <property name="text">
+         <string>🗑️ Remove empty folders after sorting</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+
+   <!-- Start Button -->
+   <item>
+    <widget class="QPushButton" name="btnStart">
+     <property name="text">
+      <string>🚀 Start Sorting</string>
+     </property>
+     <property name="minimumHeight">
+      <number>40</number>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">
+       QPushButton {
+           background-color: #4CAF50;
+           color: white;
+           font-weight: bold;
+           border-radius: 6px;
+       }
+       QPushButton:hover {
+           background-color: #45A049;
+       }
+      </string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

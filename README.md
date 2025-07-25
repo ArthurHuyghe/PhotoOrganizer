@@ -1,7 +1,13 @@
-# Photo Organizer PowerShell Script
+# Photo Organizer 
 
-This PowerShell script is designed to help you organize and sort your photos and files in a structured manner based on a specified date format. It provides a graphical user interface (GUI) for user input and offers features to streamline the organization process.
+This  script is designed to help you organize and sort your photos and files in a structured manner based on a specified date format. It provides a graphical user interface (GUI) for user input and offers features to streamline the organization process.
 
+# v3: Python script
+
+I ported the script to python and made some improvements along the way. It now supports more file types and has a better UI. I also optimized the script for use on network drives.
+
+
+# v2: Powershell script
 ## Table of Contents
 
 1. [Requirements](#requirements)
@@ -9,9 +15,9 @@ This PowerShell script is designed to help you organize and sort your photos and
 3. [Features](#features)
 4. [Warnings](#warnings)
 5. [Contributing](#contributing)
-6. [License](#license)
 
-## Requirements
+
+## Requirements 
 
 To use this script, you will need the following:
 
@@ -28,8 +34,6 @@ Follow these steps to use the script:
    ```powershell
    .\PhotoOrganizer_v2.ps1
    ```
-
-   If you want a simple executable you could place anywhere and run just like any other program please open an issue or contact me and I'll send you the .exe file, since github does not allow me to upload the exe.
 
 2. **Graphical User Interface (GUI)**: The script will launch a GUI where you can specify the following options:
 
@@ -64,10 +68,3 @@ Follow these steps to use the script:
 
 Contributions are welcome! If you have suggestions, improvements, or bug fixes for this script, please feel free to submit a pull request.
 
-## License
-
-This script is provided under an open-source license. You can find more details about the license in the script's source code.
-
----
-
-Enjoy organizing your photos and files with this PowerShell script! If you encounter any issues or have suggestions for improvements, please don't hesitate to reach out and contribute to its development.
