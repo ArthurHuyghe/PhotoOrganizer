@@ -1,3 +1,14 @@
 /.vs
 /.vscode
 PhotoOrganizer_v2.exe
+/bad prototypes
+/.venv
+/__pycache__
+*.pyc
+*.pyo
+*.log
+*.db
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
