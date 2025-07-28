@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'PhotoOrganizer_v3\progressWindow.ui'
+# Form implementation generated from reading ui file 'PhotoOrganizer_v3\ProgressWindow.ui'
 #
 # Created by: PyQt6 UI code generator 6.9.1
 #
@@ -12,7 +12,8 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 class Ui_ProgressWindow(object):
     def setupUi(self, ProgressWindow):
         ProgressWindow.setObjectName("ProgressWindow")
-        ProgressWindow.resize(500, 300)
+        ProgressWindow.resize(500, 303)
+        ProgressWindow.setMinimumSize(QtCore.QSize(500, 300))
         self.verticalLayout = QtWidgets.QVBoxLayout(ProgressWindow)
         self.verticalLayout.setObjectName("verticalLayout")
         self.progressBar = QtWidgets.QProgressBar(parent=ProgressWindow)
@@ -20,6 +21,7 @@ class Ui_ProgressWindow(object):
         self.progressBar.setMaximum(100)
         self.progressBar.setProperty("value", 0)
         self.progressBar.setTextVisible(True)
+        self.progressBar.setInvertedAppearance(False)
         self.progressBar.setObjectName("progressBar")
         self.verticalLayout.addWidget(self.progressBar)
         self.statsLayout = QtWidgets.QHBoxLayout()
@@ -28,15 +30,17 @@ class Ui_ProgressWindow(object):
         self.labelSorted.setObjectName("labelSorted")
         self.statsLayout.addWidget(self.labelSorted)
         self.labelRemaining = QtWidgets.QLabel(parent=ProgressWindow)
+        self.labelRemaining.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeading|QtCore.Qt.AlignmentFlag.AlignLeft|QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.labelRemaining.setObjectName("labelRemaining")
         self.statsLayout.addWidget(self.labelRemaining)
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+        self.statsLayout.addItem(spacerItem)
         self.verticalLayout.addLayout(self.statsLayout)
         self.groupBoxLogs = QtWidgets.QGroupBox(parent=ProgressWindow)
         self.groupBoxLogs.setObjectName("groupBoxLogs")
         self.logLayout = QtWidgets.QVBoxLayout(self.groupBoxLogs)
         self.logLayout.setObjectName("logLayout")
         self.plainTextEditLogs = QtWidgets.QPlainTextEdit(parent=self.groupBoxLogs)
-        self.plainTextEditLogs.setReadOnly(True)
         self.plainTextEditLogs.setStyleSheet("\n"
 "          QPlainTextEdit {\n"
 "              background-color: #f9f9f9;\n"
@@ -44,9 +48,15 @@ class Ui_ProgressWindow(object):
 "              font-family: Consolas;\n"
 "          }\n"
 "         ")
+        self.plainTextEditLogs.setReadOnly(True)
+        self.plainTextEditLogs.setOverwriteMode(False)
+        self.plainTextEditLogs.setBackgroundVisible(False)
+        self.plainTextEditLogs.setPlaceholderText("")
         self.plainTextEditLogs.setObjectName("plainTextEditLogs")
         self.logLayout.addWidget(self.plainTextEditLogs)
         self.verticalLayout.addWidget(self.groupBoxLogs)
+        self.groupBoxLogs.raise_()
+        self.progressBar.raise_()
 
         self.retranslateUi(ProgressWindow)
         QtCore.QMetaObject.connectSlotsByName(ProgressWindow)
@@ -55,6 +65,11 @@ class Ui_ProgressWindow(object):
         _translate = QtCore.QCoreApplication.translate
         ProgressWindow.setWindowTitle(_translate("ProgressWindow", "Sorting Progress"))
         self.progressBar.setFormat(_translate("ProgressWindow", "%p% - 0 files/sec"))
-        self.labelSorted.setText(_translate("ProgressWindow", "✅ Sorted: 0"))
+        self.labelSorted.setText(_translate("ProgressWindow", "   ✅ Sorted: 0"))
         self.labelRemaining.setText(_translate("ProgressWindow", "⌛ Remaining: 0"))
         self.groupBoxLogs.setTitle(_translate("ProgressWindow", "📝 Log Output"))
+        self.plainTextEditLogs.setPlainText(_translate("ProgressWindow", "test\n"
+"1\n"
+"2\n"
+"3\n"
+""))

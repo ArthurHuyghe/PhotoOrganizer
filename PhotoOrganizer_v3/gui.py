@@ -1,12 +1,44 @@
 # PhotoOrganizer_v3/gui.py
 # This script creates a simple GUI for the Photo Organizer application using PyQt6.
 import sys
-from PyQt6 import QtWidgets,QtCore, uic
+from pathlib import Path
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import QThread, pyqtSignal
 
 from MainWindow import Ui_MainWindow
 from ProgressWindow import Ui_ProgressWindow
+from PhotoOrganizer_v3 import PhotoOrganizer
 
 
+# Worker classes
+class PhotoOrganizerWorker(QThread):
+    # Custom signals to communicate with the main thread
+    progress_updated = pyqtSignal(int, int, str)  # For progress updates
+    finished = pyqtSignal()                       # When task completes
+    error = pyqtSignal(str)                       # For error handling
+
+    def __init__(self, organizer, source, destination, sort_by_day, remove_empty):
+        super().__init__()
+        self.organizer = organizer
+        self.source = source
+        self.destination = destination
+        self.sort_by_day = sort_by_day
+        self.remove_empty = remove_empty
+
+    def run(self):
+        try:
+            self.organizer.organize_photos(
+                source_folder=self.source,
+                destination_folder=self.destination,
+                sort_by_day=self.sort_by_day,
+                remove_empty=self.remove_empty,
+                progress_callback=self.progress_updated.emit,
+            )
+            self.finished.emit()
+        except Exception as e:
+            self.error.emit(str(e))
+
+# GUI classes 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, obj=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -86,24 +118,81 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             QtWidgets.QMessageBox.warning(self, "Input Error", "Please select both source and destination folders.")
             return
         
-        # Here you would implement the sorting logic
-        # For demonstration, we will just print the selected options
-        print("Starting sorting process...")
-        print(f"Source folder: {self.lineEditSource.text()}")
-        print(f"Destination folder: {self.lineEditDestination.text()}")
-        print(f"Sort by day: {self.sort_by_day_enabled}")
-        print(f"Remove empty folders: {self.remove_empty_folders_enabled}")
+        # TODO: Check if source_folder and destination_folder are valid directories
+        source_folder = self.lineEditSource.text()
+        destination_folder = self.lineEditDestination.text()
 
+        if not Path(source_folder).is_dir():
+            QtWidgets.QMessageBox.warning(
+                self, "Input Error", "Source folder is not valid."
+            )
+            return
+
+        if not Path(destination_folder).is_dir():
+            QtWidgets.QMessageBox.warning(
+                self, "Input Error", "Destination folder is not valid."
+            )
+            return
+        
+        
         # Show progress window
         self.progress_window = ProgressWindow()
         self.progress_window.show()
 
+        # Start the photo organizing process in a separate thread
+        self.photo_organizer = PhotoOrganizer()
+        self.worker = PhotoOrganizerWorker(
+            # Pass the necessary parameters to the worker
+            self.photo_organizer,
+            self.lineEditSource.text(),
+            self.lineEditDestination.text(),
+            self.sort_by_day_enabled,
+            self.remove_empty_folders_enabled,
+         )
+
+        # Connect the worker thread signals to main thread handlers
+        self.worker.progress_updated.connect(self.progress_window.update_progress)
+        self.worker.error.connect(
+            lambda e: QtWidgets.QMessageBox.critical(
+                self, "Error", f"An error occurred: {e}"
+            )
+        )
+        self.worker.finished.connect(self.on_sorting_finished)
+
+        # Start the worker thread
+        self.worker.start()
+
+
+    def on_sorting_finished(self):
+        """Called when sorting is complete"""
+        
+        # TODO: Show how many files were sorted
+        
+        # TODO: Show how long it took
+        
+        # change the progress window title to indicate completion
+        self.progress_window.setWindowTitle("Sorting Complete")
+        self.progress_window.plainTextEditLogs.appendPlainText("Sorting completed successfully.")
+        self.progress_window.plainTextEditLogs.appendPlainText(f"Total files sorted: {self.photo_organizer.processed_files}")
+        
+        
 class ProgressWindow(QtWidgets.QWidget, Ui_ProgressWindow):
     def __init__(self, *args, obj=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
         # Additional setup for progress window if needed
-
+        
+    def update_progress(self, current: int, total: int, current_file: str) -> None:
+        """Update the progress bar and labels"""
+        percentage = int((current / total) * 100) if total > 0 else 0
+        self.progressBar.setValue(percentage)
+        
+        # Update logs
+        self.plainTextEditLogs.appendPlainText(f"Processing: {current_file}")
+        self.labelSorted.setText(f"✅ Sorted: {current}")
+        self.labelRemaining.setText(f"⌛ Remaining: {total - current}")
+        
+        
 if __name__ == "__main__":
     # Create the application and main window
     app = QtWidgets.QApplication(sys.argv)

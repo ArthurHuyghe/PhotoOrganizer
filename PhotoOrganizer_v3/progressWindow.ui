@@ -7,16 +7,19 @@
     <x>0</x>
     <y>0</y>
     <width>500</width>
-    <height>300</height>
+    <height>303</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>500</width>
+    <height>300</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>Sorting Progress</string>
   </property>
-
   <layout class="QVBoxLayout" name="verticalLayout">
-
-   <!-- Speed + ProgressBar -->
    <item>
     <widget class="QProgressBar" name="progressBar">
      <property name="minimum">
@@ -28,22 +31,23 @@
      <property name="value">
       <number>0</number>
      </property>
-     <property name="format">
-      <string>%p% - 0 files/sec</string>
-     </property>
      <property name="textVisible">
       <bool>true</bool>
      </property>
+     <property name="invertedAppearance">
+      <bool>false</bool>
+     </property>
+     <property name="format">
+      <string>%p% - 0 files/sec</string>
+     </property>
     </widget>
    </item>
-
-   <!-- Sorted / Remaining -->
    <item>
     <layout class="QHBoxLayout" name="statsLayout">
      <item>
       <widget class="QLabel" name="labelSorted">
        <property name="text">
-        <string>✅ Sorted: 0</string>
+        <string>   ✅ Sorted: 0</string>
        </property>
       </widget>
      </item>
@@ -52,12 +56,26 @@
        <property name="text">
         <string>⌛ Remaining: 0</string>
        </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+       </property>
       </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
      </item>
     </layout>
    </item>
-
-   <!-- Log Output -->
    <item>
     <widget class="QGroupBox" name="groupBoxLogs">
      <property name="title">
@@ -66,9 +84,6 @@
      <layout class="QVBoxLayout" name="logLayout">
       <item>
        <widget class="QPlainTextEdit" name="plainTextEditLogs">
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
         <property name="styleSheet">
          <string notr="true">
           QPlainTextEdit {
@@ -78,13 +93,34 @@
           }
          </string>
         </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="plainText">
+         <string>test
+1
+2
+3
+</string>
+        </property>
+        <property name="overwriteMode">
+         <bool>false</bool>
+        </property>
+        <property name="backgroundVisible">
+         <bool>false</bool>
+        </property>
+        <property name="placeholderText">
+         <string/>
+        </property>
        </widget>
       </item>
      </layout>
     </widget>
    </item>
-
   </layout>
+  <zorder>groupBoxLogs</zorder>
+  <zorder>progressBar</zorder>
+  <zorder></zorder>
  </widget>
  <resources/>
  <connections/>
