@@ -186,7 +186,7 @@ class PhotoOrganizer:
         
     
         if progress_callback:
-            progress_callback(self.processed_files, self.total_files)
+            progress_callback(self.processed_files, self.total_files, self.failed_count)
     
         # TODO: Add file moving logic here    
         # Create destination path if it doesn't exist
@@ -218,13 +218,10 @@ class PhotoOrganizer:
             # Increment processed files count
             self.processed_files += 1
             if progress_callback:
-                progress_callback(self.processed_files, self.total_files)
+                progress_callback(self.processed_files, self.total_files, self.failed_count)
             if log_callback:
                 log_callback(f"Successfully sorted {file} to {file_new_path} ")
 
-        # Final status update
-        if log_callback:
-            log_callback(f"Completed processing {self.processed_files} files. Failed: {self.failed_count}")
 
 
 # main

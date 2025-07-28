@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>500</width>
-    <height>303</height>
+    <height>300</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -45,6 +45,16 @@
    <item>
     <layout class="QHBoxLayout" name="statsLayout">
      <item>
+      <widget class="QLabel" name="labelRemaining">
+       <property name="text">
+        <string>🔄️ Remaining: 0</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QLabel" name="labelSorted">
        <property name="text">
         <string>   ✅ Sorted: 0</string>
@@ -52,12 +62,9 @@
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="labelRemaining">
+      <widget class="QLabel" name="labelFailed">
        <property name="text">
-        <string>⌛ Remaining: 0</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+        <string>   ❌ Failed: 0</string>
        </property>
       </widget>
      </item>
@@ -73,6 +80,13 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item>
+      <widget class="QLabel" name="labelTime">
+       <property name="text">
+        <string>⌛Time remaining: </string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
@@ -97,11 +111,7 @@
          <bool>true</bool>
         </property>
         <property name="plainText">
-         <string>test
-1
-2
-3
-</string>
+         <string/>
         </property>
         <property name="overwriteMode">
          <bool>false</bool>

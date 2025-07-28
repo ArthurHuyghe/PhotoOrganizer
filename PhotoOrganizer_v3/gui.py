@@ -172,23 +172,31 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_sorting_finished(self):
         """Called when sorting is complete"""
         
-        # TODO: Show how many files were sorted
-        
-        # TODO: Show how long it took
-        
         # change the progress window title to indicate completion
         self.progress_window.setWindowTitle("Sorting Complete!")
-        self.progress_window.plainTextEditLogs.appendPlainText("Sorting completed successfully.")
-        self.progress_window.plainTextEditLogs.appendPlainText(f"Total files sorted: {self.photo_organizer.processed_files}")
+        self.progress_window.plainTextEditLogs.appendPlainText("Sorting finished.")
+        if self.photo_organizer.failed_count == 0:
+            self.progress_window.plainTextEditLogs.appendPlainText("All files sorted successfully.")
+        else:
+            self.progress_window.plainTextEditLogs.appendPlainText(f"{self.photo_organizer.failed_count} files failed to sort.")
+            self.progress_window.plainTextEditLogs.appendPlainText(f"Failed files:")
+            for failed_file in self.photo_organizer.failed_files:
+                self.progress_window.plainTextEditLogs.appendPlainText(f" - {failed_file}")
         
-        
+        # TODO: Calculate and display the time taken for sorting        
+        # change time remaining label to indicate the time it took
+        # self.progress_window.labelTime.setText("⌛Time taken: " + self.photo_organizer.get_time_taken())
+
+
+
+
 class ProgressWindow(QtWidgets.QWidget, Ui_ProgressWindow):
     def __init__(self, *args, obj=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
         # Additional setup for progress window if needed
-        
-    def update_progress(self, current: int, total: int) -> None:
+
+    def update_progress(self, current: int, total: int, failed: int) -> None:
         """Update the progress bar and labels"""
         
         percentage = int((current / total) * 100) if total > 0 else 0
@@ -196,7 +204,7 @@ class ProgressWindow(QtWidgets.QWidget, Ui_ProgressWindow):
         
         self.labelSorted.setText(f"✅ Sorted: {current}")
         self.labelRemaining.setText(f"🔄️ Remaining: {total - current}")
-        
+        self.labelFailed.setText(f"❌ Failed: {failed}")
     
     def update_logs(self, log: str) -> None:
         """Append log messages to the logs text area"""

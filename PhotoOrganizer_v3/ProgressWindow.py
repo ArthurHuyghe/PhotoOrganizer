@@ -12,7 +12,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 class Ui_ProgressWindow(object):
     def setupUi(self, ProgressWindow):
         ProgressWindow.setObjectName("ProgressWindow")
-        ProgressWindow.resize(500, 303)
+        ProgressWindow.resize(500, 300)
         ProgressWindow.setMinimumSize(QtCore.QSize(500, 300))
         self.verticalLayout = QtWidgets.QVBoxLayout(ProgressWindow)
         self.verticalLayout.setObjectName("verticalLayout")
@@ -26,15 +26,21 @@ class Ui_ProgressWindow(object):
         self.verticalLayout.addWidget(self.progressBar)
         self.statsLayout = QtWidgets.QHBoxLayout()
         self.statsLayout.setObjectName("statsLayout")
-        self.labelSorted = QtWidgets.QLabel(parent=ProgressWindow)
-        self.labelSorted.setObjectName("labelSorted")
-        self.statsLayout.addWidget(self.labelSorted)
         self.labelRemaining = QtWidgets.QLabel(parent=ProgressWindow)
         self.labelRemaining.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeading|QtCore.Qt.AlignmentFlag.AlignLeft|QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.labelRemaining.setObjectName("labelRemaining")
         self.statsLayout.addWidget(self.labelRemaining)
+        self.labelSorted = QtWidgets.QLabel(parent=ProgressWindow)
+        self.labelSorted.setObjectName("labelSorted")
+        self.statsLayout.addWidget(self.labelSorted)
+        self.labelFailed = QtWidgets.QLabel(parent=ProgressWindow)
+        self.labelFailed.setObjectName("labelFailed")
+        self.statsLayout.addWidget(self.labelFailed)
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.statsLayout.addItem(spacerItem)
+        self.labelTime = QtWidgets.QLabel(parent=ProgressWindow)
+        self.labelTime.setObjectName("labelTime")
+        self.statsLayout.addWidget(self.labelTime)
         self.verticalLayout.addLayout(self.statsLayout)
         self.groupBoxLogs = QtWidgets.QGroupBox(parent=ProgressWindow)
         self.groupBoxLogs.setObjectName("groupBoxLogs")
@@ -49,6 +55,7 @@ class Ui_ProgressWindow(object):
 "          }\n"
 "         ")
         self.plainTextEditLogs.setReadOnly(True)
+        self.plainTextEditLogs.setPlainText("")
         self.plainTextEditLogs.setOverwriteMode(False)
         self.plainTextEditLogs.setBackgroundVisible(False)
         self.plainTextEditLogs.setPlaceholderText("")
@@ -65,11 +72,8 @@ class Ui_ProgressWindow(object):
         _translate = QtCore.QCoreApplication.translate
         ProgressWindow.setWindowTitle(_translate("ProgressWindow", "Sorting Progress"))
         self.progressBar.setFormat(_translate("ProgressWindow", "%p% - 0 files/sec"))
+        self.labelRemaining.setText(_translate("ProgressWindow", "🔄️ Remaining: 0"))
         self.labelSorted.setText(_translate("ProgressWindow", "   ✅ Sorted: 0"))
-        self.labelRemaining.setText(_translate("ProgressWindow", "⌛ Remaining: 0"))
+        self.labelFailed.setText(_translate("ProgressWindow", "   ❌ Failed: 0"))
+        self.labelTime.setText(_translate("ProgressWindow", "⌛Time remaining: "))
         self.groupBoxLogs.setTitle(_translate("ProgressWindow", "📝 Log Output"))
-        self.plainTextEditLogs.setPlainText(_translate("ProgressWindow", "test\n"
-"1\n"
-"2\n"
-"3\n"
-""))
