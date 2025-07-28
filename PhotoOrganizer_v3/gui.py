@@ -13,9 +13,10 @@ from PhotoOrganizer_v3 import PhotoOrganizer
 # Worker classes
 class PhotoOrganizerWorker(QThread):
     # Custom signals to communicate with the main thread
-    progress_updated = pyqtSignal(int, int, str)  # For progress updates
-    finished = pyqtSignal()                       # When task completes
-    error = pyqtSignal(str)                       # For error handling
+    progress_updated = pyqtSignal(int, int)  # For progress updates (current, total)
+    log_updated = pyqtSignal(str)                # For log messages
+    finished = pyqtSignal()                      # When task completes
+    error = pyqtSignal(str)                      # For error handling
 
     def __init__(self, organizer, source, destination, sort_by_day, remove_empty):
         super().__init__()
@@ -33,6 +34,7 @@ class PhotoOrganizerWorker(QThread):
                 sort_by_day=self.sort_by_day,
                 remove_empty=self.remove_empty,
                 progress_callback=self.progress_updated.emit,
+                log_callback=self.log_updated.emit
             )
             self.finished.emit()
         except Exception as e:
@@ -151,12 +153,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
          )
 
         # Connect the worker thread signals to main thread handlers
+        # UI updates
         self.worker.progress_updated.connect(self.progress_window.update_progress)
+        self.worker.log_updated.connect(self.progress_window.update_logs)
+        # Error handling
         self.worker.error.connect(
             lambda e: QtWidgets.QMessageBox.critical(
                 self, "Error", f"An error occurred: {e}"
             )
         )
+        # Completion signal
         self.worker.finished.connect(self.on_sorting_finished)
 
         # Start the worker thread
@@ -171,7 +177,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # TODO: Show how long it took
         
         # change the progress window title to indicate completion
-        self.progress_window.setWindowTitle("Sorting Complete")
+        self.progress_window.setWindowTitle("Sorting Complete!")
         self.progress_window.plainTextEditLogs.appendPlainText("Sorting completed successfully.")
         self.progress_window.plainTextEditLogs.appendPlainText(f"Total files sorted: {self.photo_organizer.processed_files}")
         
@@ -182,16 +188,19 @@ class ProgressWindow(QtWidgets.QWidget, Ui_ProgressWindow):
         self.setupUi(self)
         # Additional setup for progress window if needed
         
-    def update_progress(self, current: int, total: int, current_file: str) -> None:
+    def update_progress(self, current: int, total: int) -> None:
         """Update the progress bar and labels"""
+        
         percentage = int((current / total) * 100) if total > 0 else 0
         self.progressBar.setValue(percentage)
         
-        # Update logs
-        self.plainTextEditLogs.appendPlainText(f"Processing: {current_file}")
         self.labelSorted.setText(f"✅ Sorted: {current}")
-        self.labelRemaining.setText(f"⌛ Remaining: {total - current}")
+        self.labelRemaining.setText(f"🔄️ Remaining: {total - current}")
         
+    
+    def update_logs(self, log: str) -> None:
+        """Append log messages to the logs text area"""
+        self.plainTextEditLogs.appendPlainText(log)
         
 if __name__ == "__main__":
     # Create the application and main window
