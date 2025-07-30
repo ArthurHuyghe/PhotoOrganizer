@@ -98,14 +98,11 @@
      <layout class="QVBoxLayout" name="logLayout">
       <item>
        <widget class="QPlainTextEdit" name="plainTextEditLogs">
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
         <property name="styleSheet">
-         <string notr="true">
-          QPlainTextEdit {
-              background-color: #f9f9f9;
-              border: 1px solid #ccc;
-              font-family: Consolas;
-          }
-         </string>
+         <string notr="true"/>
         </property>
         <property name="readOnly">
          <bool>true</bool>
