@@ -6,21 +6,23 @@
 
 
 from pathlib import Path
-from typing import Union, Optional
+from typing import Callable, Union, Optional
 import os
 from datetime import datetime, date
 import logging
+import ctypes
 
 from PIL import Image
 from PIL.ExifTags import TAGS
 from pymediainfo import MediaInfo
 from pillow_heif import register_heif_opener  # Import HEIF support for Pillow
 
-register_heif_opener(thumbnails=False)  # Register HEIF opener with Pillow
+# Register HEIF opener with Pillow
+register_heif_opener(thumbnails=False)
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
@@ -31,11 +33,19 @@ def debug_exif_tags(exif_data):
         tag_type = type(value).__name__
         logging.debug(
             "EXIF tag: %s (%s) - type: %s - value: %s",
-            tag_name, tag_id, tag_type, value
+            tag_name,
+            tag_id,
+            tag_type,
+            value,
         )
 
 
 class PhotoOrganizer:
+    """
+    A class to organize photos and videos into folders based on their creation date or metadata.
+    Provides methods to sort files, move them to destination folders, and optionally remove empty directories.
+    """
+
     def __init__(self):
         """Initialize the PhotoOrganizer with default values."""
         self.total_files: int = 0
@@ -153,6 +163,75 @@ class PhotoOrganizer:
                 logging.error("Error reading metadata from %s: %s", file, e)
                 return None
 
+    def has_regular_files(self, path: Path) -> bool:
+        """Check if directory contains any non-hidden, non-system files"""
+        try:
+            for entry in os.scandir(path):
+                if entry.is_file():
+                    # Check if file is not hidden and not system
+                    attrs = ctypes.windll.kernel32.GetFileAttributesW(entry.path)
+                    if attrs != -1 and not (
+                        attrs & 2
+                    ):  # Hidden=2, System=4 "or attrs & 4"
+                        return True
+            return False
+        except OSError:
+            return False
+
+    def delete_empty_folders(self, root: Path) -> None:
+        """Recursively delete empty folders and their hidden/system files
+
+        Args:
+            root: The root directory to start searching for empty folders
+        """
+        while True:
+            empty_found = False
+            for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+                for dirname in dirnames:
+                    full_path = Path(dirpath) / Path(dirname)
+                    try:
+                        # First check if directory has any regular files
+                        if not self.has_regular_files(full_path):
+                            # If no regular files, delete any hidden/system files
+                            for entry in os.scandir(full_path):
+                                if entry.is_file():
+                                    # TODO: implement a callback for confirmation
+                                    
+                                    # If no callback, ask for confirmation in console
+                                    confirm = ""
+                                    while confirm not in ["y", "n"]:
+                                        confirm = input(
+                                            f"Remove hidden/system file {entry.path}? (y/n): "
+                                        )
+                                    if confirm == "y":
+                                        try:
+                                            os.remove(entry.path)
+                                            logging.info(
+                                                "Removed hidden/system file: %s",
+                                                entry.path,
+                                            )
+                                        except OSError as e:
+                                            logging.warning(
+                                                "Failed to remove file %s: %s",
+                                                entry.path,
+                                                e,
+                                            )
+                                    else:
+                                        logging.info(
+                                            "Skipped removing file: %s", entry.path
+                                        )
+
+                            # Now try to remove the empty directory
+                            if not os.listdir(full_path):
+                                os.rmdir(full_path)
+                                empty_found = True
+                                logging.info("Removed empty folder: %s", full_path)
+                    except OSError as e:
+                        logging.warning("Failed to remove %s: %s", full_path, e)
+
+            if not empty_found:
+                break
+
     def organize_photos(
         self,
         source_folder: Union[str, Path],
@@ -171,6 +250,7 @@ class PhotoOrganizer:
             sort_by_day: Whether to sort into day-level folders
             remove_empty: Whether to remove empty folders after processing
             progress_callback: Optional callback function to update GUI progress
+            log_callback: Optional callback for logging messages
         """
 
         # Get source path
@@ -183,28 +263,83 @@ class PhotoOrganizer:
 
         # Update total files count
         self.total_files = len(files_to_process)
-        
-    
+
         if progress_callback:
             progress_callback(self.processed_files, self.total_files, self.failed_count)
-    
-        # TODO: Add file moving logic here    
+
         # Create destination path if it doesn't exist
         file_new_path = Path(destination_folder)
-        
-        
+
         # Process each file
         for file in files_to_process:
             if log_callback:
                 log_callback(f"Processing {file.name}")
-                
+
+            # Check if file has a valid date
             try:
                 file_date = self.get_file_date(file)
                 if file_date:
-                    logging.info(
-                        "Successfully extracted date %s from %s", file_date, file.name
-                    )
-                    # TODO: Add logic to move/copy file to destination folder
+                    # Create the new folder structure based on the date
+                    # Format folder structure based on sort_by_day option
+                    if sort_by_day:
+                        date_folder = file_date.strftime("%Y/%m/%d")
+                    else:
+                        date_folder = file_date.strftime("%Y/%m")
+
+                    # Create full destination path
+                    file_new_path = Path(destination_folder) / date_folder
+
+                    # Create all necessary directories
+                    file_new_path.mkdir(parents=True, exist_ok=True)
+
+                    # Generate new file path, handling duplicates
+                    
+                    # TODO: implement counter and list for duplicate files
+                    
+                    new_file_path = file_new_path / file.name
+                    if new_file_path.exists():
+                        self.processed_files += 1
+                        if progress_callback:
+                            progress_callback(
+                                self.processed_files,
+                                self.total_files,
+                                self.failed_count,
+                            )
+                        if log_callback:
+                            log_callback(
+                                f"File {file.name} already exists in {file_new_path}, skipping."
+                            )
+                        continue  # This prevents the file from being moved
+
+                        # If file exists, append number until we find a unique name
+                        # counter = 1
+                        # while new_file_path.exists():
+                        #     stem = file.stem
+                        #     suffix = file.suffix
+                        #     new_name = f"{stem}_{counter}{suffix}"
+                        #     new_file_path = file_new_path / new_name
+                        #     counter += 1
+
+                    try:
+                        # Move the file to new location
+                        file.rename(new_file_path)
+                        # Increment processed files count
+                        self.processed_files += 1
+                        if progress_callback:
+                            progress_callback(
+                                self.processed_files,
+                                self.total_files,
+                                self.failed_count,
+                            )
+
+                        if log_callback:
+                            log_callback(f"Moved {file.name} to {new_file_path}")
+
+                    except Exception as e:
+                        logging.error("Failed to move %s: %s", file.name, e)
+                        self.failed_files.append(str(file))
+                        self.failed_count += 1
+
                 else:
                     logging.warning("No date found for %s", file.name)
                     self.failed_files.append(str(file))
@@ -215,21 +350,16 @@ class PhotoOrganizer:
                 self.failed_count += 1
                 continue
 
-            # Increment processed files count
-            self.processed_files += 1
-            if progress_callback:
-                progress_callback(self.processed_files, self.total_files, self.failed_count)
-            if log_callback:
-                log_callback(f"Successfully sorted {file} to {file_new_path} ")
-
+        # After processing all files, remove empty folders if requested
+        if remove_empty:
+            self.delete_empty_folders(source_path)
 
 
 # main
 if __name__ == "__main__":
-    logging.info("Starting photo organization...")
     organizer = PhotoOrganizer()
 
-    source = "C:\\Users\\Arthu\\Pictures\\Camera Roll"
+    source = "C:\\Users\\Arthu\\Pictures\\test"
     dest = "C:\\Users\\Arthu\\Pictures\\Camera Roll"
 
     logging.info("Processing files from: %s", source)
@@ -245,6 +375,6 @@ if __name__ == "__main__":
     logging.info("Photo organization complete!")
     logging.info("failed files: %d", organizer.failed_count)
     if organizer.failed_files:
-       logging.info("List of failed files:")
-       for failed_file in organizer.failed_files:
-           logging.info(" - %s", failed_file)
+        logging.info("List of failed files:")
+        for failed_file in organizer.failed_files:
+            logging.info(" - %s", failed_file)

@@ -2,8 +2,7 @@
 # This script creates a simple GUI for the Photo Organizer application using PyQt6.
 import sys
 from pathlib import Path
-from PyQt6 import QtWidgets
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6 import QtWidgets, QtCore
 
 from MainWindow import Ui_MainWindow
 from ProgressWindow import Ui_ProgressWindow
@@ -11,12 +10,14 @@ from PhotoOrganizer_v3 import PhotoOrganizer
 
 
 # Worker classes
-class PhotoOrganizerWorker(QThread):
+class PhotoOrganizerWorker(QtCore.QThread):
     # Custom signals to communicate with the main thread
-    progress_updated = pyqtSignal(int, int)  # For progress updates (current, total)
-    log_updated = pyqtSignal(str)                # For log messages
-    finished = pyqtSignal()                      # When task completes
-    error = pyqtSignal(str)                      # For error handling
+    progress_updated = QtCore.pyqtSignal(
+        int, int, int
+    )  # For progress updates (current, total, failed)
+    log_updated = QtCore.pyqtSignal(str)  # For log messages
+    finished = QtCore.pyqtSignal()  # When task completes
+    error = QtCore.pyqtSignal(str)  # For error handling
 
     def __init__(self, organizer, source, destination, sort_by_day, remove_empty):
         super().__init__()
@@ -34,29 +35,32 @@ class PhotoOrganizerWorker(QThread):
                 sort_by_day=self.sort_by_day,
                 remove_empty=self.remove_empty,
                 progress_callback=self.progress_updated.emit,
-                log_callback=self.log_updated.emit
+                log_callback=self.log_updated.emit,
             )
             self.finished.emit()
         except Exception as e:
             self.error.emit(str(e))
 
-# GUI classes 
+
+# GUI classes
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, obj=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
-        
+
         # Connect buttons to their respective methods
         self.btnBrowseSource.clicked.connect(self.browse_source)
         self.btnBrowseDestination.clicked.connect(self.browse_destination)
         self.btnStartSorting.clicked.connect(self.start_sorting)
-        
+
         # Connect checkboxes to their respective methods
         self.checkBoxSortByDay.stateChanged.connect(self.sort_by_day)
         self.checkBoxRemoveEmpty.stateChanged.connect(self.remove_empty_folders)
+
         # Initialize options
         self.sort_by_day_enabled = False
         self.remove_empty_folders_enabled = True
+
         # Set initial state of checkboxes
         self.checkBoxSortByDay.setChecked(self.sort_by_day_enabled)
         self.checkBoxRemoveEmpty.setChecked(self.remove_empty_folders_enabled)
@@ -65,17 +69,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def browse_source(self) -> None:
         """
         Opens a file dialog to select a source folder and updates the source line edit.
-        
+
         The dialog is set to read-only mode to prevent accidental modifications.
         """
         options = QtWidgets.QFileDialog.Option.ReadOnly
-        
+
         folder = QtWidgets.QFileDialog.getExistingDirectory(
-            parent=self,
-            caption="Select Source Folder",
-            options=options
+            parent=self, caption="Select Source Folder", options=options
         )
-        
+
         if folder:
             self.lineEditSource.setText(folder)
 
@@ -93,15 +95,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         if folder:
             self.lineEditDestination.setText(folder)
-    
-    # Methods to handle checkboxes state change        
+
+    # Methods to handle checkboxes state change
     def sort_by_day(self, checked: int) -> None:
         """
         Handles the state change of the 'Sort By Day' checkbox.
         """
         self.sort_by_day_enabled = self.checkBoxSortByDay.isChecked()
         print(f"Sort by day enabled: {self.sort_by_day_enabled}")
-        
+
     def remove_empty_folders(self, checked: int) -> None:
         """
         Handles the state change of the 'Remove Empty Folders' checkbox.
@@ -113,14 +115,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def start_sorting(self) -> None:
         """
         Starts the sorting process based on the selected options.
-        
+
         This method should be connected to the sorting logic of the application.
         """
         if not self.lineEditSource.text() or not self.lineEditDestination.text():
-            QtWidgets.QMessageBox.warning(self, "Input Error", "Please select both source and destination folders.")
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Input Error",
+                "Please select both source and destination folders.",
+            )
             return
-        
-        # TODO: Check if source_folder and destination_folder are valid directories
+
+        # Validate source and destination folders
         source_folder = self.lineEditSource.text()
         destination_folder = self.lineEditDestination.text()
 
@@ -135,8 +141,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self, "Input Error", "Destination folder is not valid."
             )
             return
-        
-        
+
         # Show progress window
         self.progress_window = ProgressWindow()
         self.progress_window.show()
@@ -150,7 +155,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.lineEditDestination.text(),
             self.sort_by_day_enabled,
             self.remove_empty_folders_enabled,
-         )
+        )
 
         # Connect the worker thread signals to main thread handlers
         # UI updates
@@ -168,48 +173,52 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # Start the worker thread
         self.worker.start()
 
-
+    # Method to handle sorting completion
     def on_sorting_finished(self):
         """Called when sorting is complete"""
-        
+
         # change the progress window title to indicate completion
         self.progress_window.setWindowTitle("Sorting Complete!")
         self.progress_window.plainTextEditLogs.appendPlainText("Sorting finished.")
         if self.photo_organizer.failed_count == 0:
-            self.progress_window.plainTextEditLogs.appendPlainText("All files sorted successfully.")
+            self.progress_window.plainTextEditLogs.appendPlainText(
+                "All files sorted successfully."
+            )
         else:
-            self.progress_window.plainTextEditLogs.appendPlainText(f"{self.photo_organizer.failed_count} files failed to sort.")
-            self.progress_window.plainTextEditLogs.appendPlainText(f"Failed files:")
+            self.progress_window.plainTextEditLogs.appendPlainText(
+                f"{self.photo_organizer.failed_count} files failed to sort."
+            )
+            self.progress_window.plainTextEditLogs.appendPlainText("Failed files:")
             for failed_file in self.photo_organizer.failed_files:
-                self.progress_window.plainTextEditLogs.appendPlainText(f" - {failed_file}")
-        
-        # TODO: Calculate and display the time taken for sorting        
+                self.progress_window.plainTextEditLogs.appendPlainText(
+                    f" - {failed_file}"
+                )
+
+        # TODO: Calculate and display the time taken for sorting
         # change time remaining label to indicate the time it took
         # self.progress_window.labelTime.setText("⌛Time taken: " + self.photo_organizer.get_time_taken())
-
-
 
 
 class ProgressWindow(QtWidgets.QWidget, Ui_ProgressWindow):
     def __init__(self, *args, obj=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
-        # Additional setup for progress window if needed
 
     def update_progress(self, current: int, total: int, failed: int) -> None:
         """Update the progress bar and labels"""
-        
-        percentage = int((current / total) * 100) if total > 0 else 0
+
+        percentage = int((current + failed) / total * 100) if total > 0 else 0
         self.progressBar.setValue(percentage)
-        
+
         self.labelSorted.setText(f"✅ Sorted: {current}")
-        self.labelRemaining.setText(f"🔄️ Remaining: {total - current}")
+        self.labelRemaining.setText(f"🔄️ Remaining: {total - current - failed}")
         self.labelFailed.setText(f"❌ Failed: {failed}")
-    
+
     def update_logs(self, log: str) -> None:
         """Append log messages to the logs text area"""
         self.plainTextEditLogs.appendPlainText(log)
-        
+
+
 if __name__ == "__main__":
     # Create the application and main window
     app = QtWidgets.QApplication(sys.argv)

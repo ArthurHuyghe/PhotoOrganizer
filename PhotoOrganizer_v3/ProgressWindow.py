@@ -47,13 +47,8 @@ class Ui_ProgressWindow(object):
         self.logLayout = QtWidgets.QVBoxLayout(self.groupBoxLogs)
         self.logLayout.setObjectName("logLayout")
         self.plainTextEditLogs = QtWidgets.QPlainTextEdit(parent=self.groupBoxLogs)
-        self.plainTextEditLogs.setStyleSheet("\n"
-"          QPlainTextEdit {\n"
-"              background-color: #f9f9f9;\n"
-"              border: 1px solid #ccc;\n"
-"              font-family: Consolas;\n"
-"          }\n"
-"         ")
+        self.plainTextEditLogs.setAutoFillBackground(False)
+        self.plainTextEditLogs.setStyleSheet("")
         self.plainTextEditLogs.setReadOnly(True)
         self.plainTextEditLogs.setPlainText("")
         self.plainTextEditLogs.setOverwriteMode(False)
