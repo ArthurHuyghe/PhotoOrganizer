@@ -12,21 +12,44 @@ from PhotoOrganizer_v3 import PhotoOrganizer
 # Worker classes
 class PhotoOrganizerWorker(QtCore.QThread):
     # Custom signals to communicate with the main thread
-    progress_updated = QtCore.pyqtSignal(
-        int, int, int
-    )  # For progress updates (current, total, failed)
-    log_updated = QtCore.pyqtSignal(str)  # For log messages
-    finished = QtCore.pyqtSignal()  # When task completes
-    error = QtCore.pyqtSignal(str)  # For error handling
+    # For progress updates (current, total, failed)
+    progress_updated = QtCore.pyqtSignal(int, int, int)
+    # For log messages
+    log_updated = QtCore.pyqtSignal(str)
+    # When task completes
+    finished = QtCore.pyqtSignal()
+    # For error handling
+    error = QtCore.pyqtSignal(str)
+    # handing removal requests
+    # For invoke removal confirmation
+    remove_confirmation = QtCore.pyqtSignal(str)
 
     def __init__(self, organizer, source, destination, sort_by_day, remove_empty):
         super().__init__()
+        # Initialize the worker variables
         self.organizer = organizer
         self.source = source
         self.destination = destination
         self.sort_by_day = sort_by_day
         self.remove_empty = remove_empty
+        self.confirmation_loop = None
+        self.confirmation_response = None
 
+    @QtCore.pyqtSlot(bool)
+    def handle_confirmation_response(self, confirmed: bool):
+        """Handle the user's response to the removal confirmation."""
+        self.confirmation_response = confirmed
+        if self.confirmation_loop and self.confirmation_loop.isRunning():
+            self.confirmation_loop.quit()
+    
+    def ask_for_removal_confirmation(self, file_path: str):
+        """Ask user for confirmation via signal and wait for response"""
+        self.confirmation_loop = QtCore.QEventLoop()
+        self.remove_confirmation.emit(file_path)
+        self.confirmation_loop.exec() # Blocks until confirmation is received
+        return self.confirmation_response   
+    
+    
     def run(self):
         try:
             self.organizer.organize_photos(
@@ -36,6 +59,7 @@ class PhotoOrganizerWorker(QtCore.QThread):
                 remove_empty=self.remove_empty,
                 progress_callback=self.progress_updated.emit,
                 log_callback=self.log_updated.emit,
+                remove_confirmation_callback=self.ask_for_removal_confirmation,
             )
             self.finished.emit()
         except Exception as e:
@@ -43,29 +67,23 @@ class PhotoOrganizerWorker(QtCore.QThread):
 
 
 # GUI classes
-
-# GUI classes
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, obj=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
-
 
         # Connect buttons to their respective methods
         self.btnBrowseSource.clicked.connect(self.browse_source)
         self.btnBrowseDestination.clicked.connect(self.browse_destination)
         self.btnStartSorting.clicked.connect(self.start_sorting)
 
-
         # Connect checkboxes to their respective methods
         self.checkBoxSortByDay.stateChanged.connect(self.sort_by_day)
         self.checkBoxRemoveEmpty.stateChanged.connect(self.remove_empty_folders)
 
-
         # Initialize options
         self.sort_by_day_enabled = False
         self.remove_empty_folders_enabled = True
-
 
         # Set initial state of checkboxes
         self.checkBoxSortByDay.setChecked(self.sort_by_day_enabled)
@@ -81,12 +99,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         options = QtWidgets.QFileDialog.Option.ReadOnly
 
-
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             parent=self, caption="Select Source Folder", options=options
-            parent=self, caption="Select Source Folder", options=options
         )
-
 
         if folder:
             self.lineEditSource.setText(folder)
@@ -121,6 +136,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.remove_empty_folders_enabled = self.checkBoxRemoveEmpty.isChecked()
         print(f"Remove empty folders enabled: {self.remove_empty_folders_enabled}")
 
+    def handle_removal_confirmation(self, file_path: str):
+        """
+        Handles the removal confirmation signal from the worker thread.
+        Displays a confirmation dialog to the user and waits for their response.
+        """
+        response = QtWidgets.QMessageBox.question(
+            self,
+            "Remove File",
+            f"Do you want to remove {file_path}",
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+        )
+        confirmed = response == QtWidgets.QMessageBox.StandardButton.Yes
+        self.worker.handle_confirmation_response(confirmed)
+        
     # Method to start sorting process
     def start_sorting(self) -> None:
         """
@@ -130,11 +159,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         This method should be connected to the sorting logic of the application.
         """
         if not self.lineEditSource.text() or not self.lineEditDestination.text():
-            QtWidgets.QMessageBox.warning(
-                self,
-                "Input Error",
-                "Please select both source and destination folders.",
-            )
             QtWidgets.QMessageBox.warning(
                 self,
                 "Input Error",
@@ -154,13 +178,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             )
             return
 
-        if not Path(destination_folder).is_dir():
-            QtWidgets.QMessageBox.warning(
-                self, "Input Error", "Destination folder is not valid."
-            )
-            return
-
-
         # Show progress window
         self.progress_window = ProgressWindow()
         self.progress_window.show()
@@ -175,12 +192,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sort_by_day_enabled,
             self.remove_empty_folders_enabled,
         )
-        )
 
         # Connect the worker thread signals to main thread handlers
         # UI updates
         self.worker.progress_updated.connect(self.progress_window.update_progress)
         self.worker.log_updated.connect(self.progress_window.update_logs)
+        # removal confirmation handling
+        self.worker.remove_confirmation.connect(self.handle_removal_confirmation)
         # Error handling
         self.worker.error.connect(
             lambda e: QtWidgets.QMessageBox.critical(
@@ -191,13 +209,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.worker.finished.connect(self.on_sorting_finished)
 
         # Start the worker thread
+        
         self.worker.start()
 
     # Method to handle sorting completion
-    # Method to handle sorting completion
     def on_sorting_finished(self):
         """Called when sorting is complete"""
-
 
         # change the progress window title to indicate completion
         self.progress_window.setWindowTitle("Sorting Complete!")
@@ -206,24 +223,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.progress_window.plainTextEditLogs.appendPlainText(
                 "All files sorted successfully."
             )
-            self.progress_window.plainTextEditLogs.appendPlainText(
-                "All files sorted successfully."
-            )
+
         else:
             self.progress_window.plainTextEditLogs.appendPlainText(
                 f"{self.photo_organizer.failed_count} files failed to sort."
             )
             self.progress_window.plainTextEditLogs.appendPlainText("Failed files:")
-            self.progress_window.plainTextEditLogs.appendPlainText(
-                f"{self.photo_organizer.failed_count} files failed to sort."
-            )
-            self.progress_window.plainTextEditLogs.appendPlainText("Failed files:")
             for failed_file in self.photo_organizer.failed_files:
-                self.progress_window.plainTextEditLogs.appendPlainText(
-                    f" - {failed_file}"
-                )
-
-        # TODO: Calculate and display the time taken for sorting
                 self.progress_window.plainTextEditLogs.appendPlainText(
                     f" - {failed_file}"
                 )
@@ -246,18 +252,14 @@ class ProgressWindow(QtWidgets.QWidget, Ui_ProgressWindow):
         percentage = int((current + failed) / total * 100) if total > 0 else 0
         self.progressBar.setValue(percentage)
 
-
         self.labelSorted.setText(f"✅ Sorted: {current}")
         self.labelRemaining.setText(f"🔄️ Remaining: {total - current - failed}")
         self.labelRemaining.setText(f"🔄️ Remaining: {total - current - failed}")
         self.labelFailed.setText(f"❌ Failed: {failed}")
 
-
     def update_logs(self, log: str) -> None:
         """Append log messages to the logs text area"""
         self.plainTextEditLogs.appendPlainText(log)
-
-
 
 
 if __name__ == "__main__":

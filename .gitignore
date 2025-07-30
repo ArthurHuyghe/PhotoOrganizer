@@ -13,3 +13,4 @@ Thumbs.db
 *.bak
 *.tmp
 PhotoOrganizer_v3/mainWindow.ui.autosave
+PhotoOrganizer_v3/test.py
