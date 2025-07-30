@@ -43,23 +43,29 @@ class PhotoOrganizerWorker(QtCore.QThread):
 
 
 # GUI classes
+
+# GUI classes
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, obj=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
+
 
         # Connect buttons to their respective methods
         self.btnBrowseSource.clicked.connect(self.browse_source)
         self.btnBrowseDestination.clicked.connect(self.browse_destination)
         self.btnStartSorting.clicked.connect(self.start_sorting)
 
+
         # Connect checkboxes to their respective methods
         self.checkBoxSortByDay.stateChanged.connect(self.sort_by_day)
         self.checkBoxRemoveEmpty.stateChanged.connect(self.remove_empty_folders)
 
+
         # Initialize options
         self.sort_by_day_enabled = False
         self.remove_empty_folders_enabled = True
+
 
         # Set initial state of checkboxes
         self.checkBoxSortByDay.setChecked(self.sort_by_day_enabled)
@@ -70,13 +76,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Opens a file dialog to select a source folder and updates the source line edit.
 
+
         The dialog is set to read-only mode to prevent accidental modifications.
         """
         options = QtWidgets.QFileDialog.Option.ReadOnly
 
+
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             parent=self, caption="Select Source Folder", options=options
+            parent=self, caption="Select Source Folder", options=options
         )
+
 
         if folder:
             self.lineEditSource.setText(folder)
@@ -116,6 +126,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Starts the sorting process based on the selected options.
 
+
         This method should be connected to the sorting logic of the application.
         """
         if not self.lineEditSource.text() or not self.lineEditDestination.text():
@@ -124,7 +135,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 "Input Error",
                 "Please select both source and destination folders.",
             )
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Input Error",
+                "Please select both source and destination folders.",
+            )
             return
+
+        # Validate source and destination folders
 
         # Validate source and destination folders
         source_folder = self.lineEditSource.text()
@@ -142,6 +160,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             )
             return
 
+
         # Show progress window
         self.progress_window = ProgressWindow()
         self.progress_window.show()
@@ -155,6 +174,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.lineEditDestination.text(),
             self.sort_by_day_enabled,
             self.remove_empty_folders_enabled,
+        )
         )
 
         # Connect the worker thread signals to main thread handlers
@@ -174,8 +194,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.worker.start()
 
     # Method to handle sorting completion
+    # Method to handle sorting completion
     def on_sorting_finished(self):
         """Called when sorting is complete"""
+
 
         # change the progress window title to indicate completion
         self.progress_window.setWindowTitle("Sorting Complete!")
@@ -184,12 +206,24 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.progress_window.plainTextEditLogs.appendPlainText(
                 "All files sorted successfully."
             )
+            self.progress_window.plainTextEditLogs.appendPlainText(
+                "All files sorted successfully."
+            )
         else:
             self.progress_window.plainTextEditLogs.appendPlainText(
                 f"{self.photo_organizer.failed_count} files failed to sort."
             )
             self.progress_window.plainTextEditLogs.appendPlainText("Failed files:")
+            self.progress_window.plainTextEditLogs.appendPlainText(
+                f"{self.photo_organizer.failed_count} files failed to sort."
+            )
+            self.progress_window.plainTextEditLogs.appendPlainText("Failed files:")
             for failed_file in self.photo_organizer.failed_files:
+                self.progress_window.plainTextEditLogs.appendPlainText(
+                    f" - {failed_file}"
+                )
+
+        # TODO: Calculate and display the time taken for sorting
                 self.progress_window.plainTextEditLogs.appendPlainText(
                     f" - {failed_file}"
                 )
@@ -208,15 +242,22 @@ class ProgressWindow(QtWidgets.QWidget, Ui_ProgressWindow):
         """Update the progress bar and labels"""
 
         percentage = int((current + failed) / total * 100) if total > 0 else 0
+
+        percentage = int((current + failed) / total * 100) if total > 0 else 0
         self.progressBar.setValue(percentage)
+
 
         self.labelSorted.setText(f"✅ Sorted: {current}")
         self.labelRemaining.setText(f"🔄️ Remaining: {total - current - failed}")
+        self.labelRemaining.setText(f"🔄️ Remaining: {total - current - failed}")
         self.labelFailed.setText(f"❌ Failed: {failed}")
+
 
     def update_logs(self, log: str) -> None:
         """Append log messages to the logs text area"""
         self.plainTextEditLogs.appendPlainText(log)
+
+
 
 
 if __name__ == "__main__":

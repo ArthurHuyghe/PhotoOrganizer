@@ -195,6 +195,7 @@ class PhotoOrganizer:
                             # If no regular files, delete any hidden/system files
                             for entry in os.scandir(full_path):
                                 if entry.is_file():
+                                    
                                     # TODO: implement a callback for confirmation
                                     
                                     # If no callback, ask for confirmation in console
