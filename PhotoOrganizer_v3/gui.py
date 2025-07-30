@@ -41,15 +41,14 @@ class PhotoOrganizerWorker(QtCore.QThread):
         self.confirmation_response = confirmed
         if self.confirmation_loop and self.confirmation_loop.isRunning():
             self.confirmation_loop.quit()
-    
+
     def ask_for_removal_confirmation(self, file_path: str):
         """Ask user for confirmation via signal and wait for response"""
         self.confirmation_loop = QtCore.QEventLoop()
         self.remove_confirmation.emit(file_path)
-        self.confirmation_loop.exec() # Blocks until confirmation is received
-        return self.confirmation_response   
-    
-    
+        self.confirmation_loop.exec()  # Blocks until confirmation is received
+        return self.confirmation_response
+
     def run(self):
         try:
             self.organizer.organize_photos(
@@ -144,12 +143,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         response = QtWidgets.QMessageBox.question(
             self,
             "Remove File",
-            f"Do you want to remove {file_path}",
-            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+            f"Do you want to remove {file_path} ?",
+            QtWidgets.QMessageBox.StandardButton.Yes
+            | QtWidgets.QMessageBox.StandardButton.No,
         )
         confirmed = response == QtWidgets.QMessageBox.StandardButton.Yes
         self.worker.handle_confirmation_response(confirmed)
-        
+
     # Method to start sorting process
     def start_sorting(self) -> None:
         """
@@ -167,14 +167,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             return
 
         # Validate source and destination folders
-
-        # Validate source and destination folders
-        source_folder = self.lineEditSource.text()
-        destination_folder = self.lineEditDestination.text()
-
-        if not Path(source_folder).is_dir():
+        if not Path(self.lineEditSource.text()).is_dir():
             QtWidgets.QMessageBox.warning(
                 self, "Input Error", "Source folder is not valid."
+            )
+            return
+
+        if not Path(self.lineEditDestination.text()).is_dir():
+            QtWidgets.QMessageBox.warning(
+                self, "Input Error", "Destination folder is not valid."
             )
             return
 
@@ -209,7 +210,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.worker.finished.connect(self.on_sorting_finished)
 
         # Start the worker thread
-        
+
         self.worker.start()
 
     # Method to handle sorting completion
@@ -218,7 +219,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # change the progress window title to indicate completion
         self.progress_window.setWindowTitle("Sorting Complete!")
-        self.progress_window.plainTextEditLogs.appendPlainText("Sorting finished.")
+        self.progress_window.plainTextEditLogs.appendPlainText("")
+        self.progress_window.plainTextEditLogs.appendPlainText(
+            "--- Sorting Complete ---"
+        )
         if self.photo_organizer.failed_count == 0:
             self.progress_window.plainTextEditLogs.appendPlainText(
                 "All files sorted successfully."

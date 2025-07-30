@@ -178,81 +178,77 @@ class PhotoOrganizer:
         except OSError:
             return False
 
-    def delete_empty_folders(self, root: Path, log_callback=None, remove_confirmation_callback=None) -> None:
+    def delete_file_with_confirmation(
+        self, file_path: str, log_callback=None, remove_confirmation_callback=None
+    ) -> None:
+        """Delete a file with confirmation
+
+        Args:
+            file_path: The path of the file to delete
+            log_callback: Optional callback function to log messages
+            remove_confirmation_callback: Optional callback function to confirm file removal
+        """
+        if remove_confirmation_callback:
+            # If a callback is provided, use it to ask for confirmation
+            confirm = remove_confirmation_callback(file_path)
+            if confirm:
+                try:
+                    os.remove(file_path)
+                    if log_callback:
+                        log_callback(f"Removed file: {file_path}")
+                except OSError as e:
+                    if log_callback:
+                        log_callback(f"Failed to remove file {file_path}: {e}")
+                    self.failed_files.append(f"removal hidden/system file: {file_path}")
+            else:
+                if log_callback:
+                    log_callback(f"Skipped removing file: {file_path}")
+        else:
+            # If no callback, ask for confirmation in console
+            confirm = ""
+            while confirm not in ["y", "n"]:
+                confirm = input(f"Remove file {file_path}? (y/n): ")
+            if confirm == "y":
+                try:
+                    os.remove(file_path)
+                    logging.info("Removed file: %s", file_path)
+                except OSError as e:
+                    logging.warning("Failed to remove file %s: %s", file_path, e)
+            else:
+                logging.info("Skipped removing file: %s", file_path)
+
+    def delete_empty_folders(
+        self, root: Path, log_callback=None, remove_confirmation_callback=None
+    ) -> None:
         """Recursively delete empty folders and their hidden/system files
 
         Args:
             root: The root directory to start searching for empty folders
+            log_callback: Optional callback function to log messages
+            remove_confirmation_callback: Optional callback function to confirm file removal
         """
         while True:
             empty_found = False
-            for dirpath, dirnames, filenames in os.walk(root, topdown=False):
-                for dirname in dirnames:
-                    full_path = Path(dirpath) / Path(dirname)
+            for current_dir, subdirs, _ in os.walk(root, topdown=False):
+                for folder in subdirs:
+                    full_path = Path(current_dir) / Path(folder)
                     try:
                         # First check if directory has any regular files
                         if not self.has_regular_files(full_path):
                             # If no regular files, delete any hidden/system files
                             for entry in os.scandir(full_path):
                                 if entry.is_file():
-                                    if remove_confirmation_callback:
-                                        # If a callback is provided, use it to ask for confirmation
-                                        confirm = remove_confirmation_callback(entry.path)
-                                        if confirm:
-                                            try:
-                                                os.remove(entry.path)
-                                                if log_callback:
-                                                    log_callback(f"Removed hidden/system file: {entry.path}")
-                                                    
-                                                logging.info(
-                                                    "Removed hidden/system file: %s",
-                                                    entry.path,
-                                                )
-                                            except OSError as e:
-                                                if log_callback:
-                                                    log_callback(f"Failed to remove file {entry.path}: {e}")
-                                                self.failed_files.append(f"removal hidden/system file: {entry.path}")
-                                                logging.warning(
-                                                    "Failed to remove file %s: %s",
-                                                    entry.path,
-                                                    e,
-                                                )
-                                        else:
-                                            if log_callback:
-                                                log_callback(f"Skipped removing file: {entry.path}")
-                                            logging.info(
-                                                "Skipped removing file: %s", entry.path
-                                            )
-                                    else:        
-                                        # If no callback, ask for confirmation in console
-                                        confirm = ""
-                                        while confirm not in ["y", "n"]:
-                                            confirm = input(
-                                                f"Remove hidden/system file {entry.path}? (y/n): "
-                                            )
-                                        if confirm == "y":
-                                            try:
-                                                os.remove(entry.path)
-                                                logging.info(
-                                                    "Removed hidden/system file: %s",
-                                                    entry.path,
-                                                )
-                                            except OSError as e:
-                                                logging.warning(
-                                                    "Failed to remove file %s: %s",
-                                                    entry.path,
-                                                    e,
-                                                )
-                                        else:
-                                            logging.info(
-                                                "Skipped removing file: %s", entry.path
-                                            )
-
+                                    self.delete_file_with_confirmation(
+                                        entry.path,
+                                        log_callback=log_callback,
+                                        remove_confirmation_callback=remove_confirmation_callback,
+                                    )
                             # Now try to remove the empty directory
                             if not os.listdir(full_path):
                                 os.rmdir(full_path)
                                 empty_found = True
                                 logging.info("Removed empty folder: %s", full_path)
+
                     except OSError as e:
                         logging.warning("Failed to remove %s: %s", full_path, e)
 
@@ -270,7 +266,7 @@ class PhotoOrganizer:
         remove_empty: bool = True,
         progress_callback=None,
         log_callback=None,
-        remove_confirmation_callback= None
+        remove_confirmation_callback=None,
     ) -> None:
         """
         Main method to organize photos
@@ -324,9 +320,9 @@ class PhotoOrganizer:
                     file_new_path.mkdir(parents=True, exist_ok=True)
 
                     # Generate new file path, handling duplicates
-                    
+
                     # TODO: implement counter and list for duplicate files
-                    
+
                     new_file_path = file_new_path / file.name
                     if new_file_path.exists():
                         self.processed_files += 1
@@ -380,14 +376,16 @@ class PhotoOrganizer:
                 self.failed_files.append(str(file))
                 self.failed_count += 1
                 continue
-        
+
         if log_callback:
             log_callback("All files processed.")
         # After processing all files, remove empty folders if requested
         if remove_empty:
             if log_callback:
                 log_callback("Removing empty folders...")
-            self.delete_empty_folders(source_path, log_callback, remove_confirmation_callback)
+            self.delete_empty_folders(
+                source_path, log_callback, remove_confirmation_callback
+            )
 
 
 # main
