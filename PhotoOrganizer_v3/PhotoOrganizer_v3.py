@@ -195,14 +195,16 @@ class PhotoOrganizer:
                 try:
                     os.remove(file_path)
                     if log_callback:
-                        log_callback(f"Removed file: {file_path}")
+                        log_callback(f" • Removed file: {file_path}")
                 except OSError as e:
                     if log_callback:
-                        log_callback(f"Failed to remove file {file_path}: {e}")
-                    self.failed_files.append(f"removal hidden/system file: {file_path}")
+                        log_callback(f" • Failed to remove file {file_path}: {e}")
+                    self.failed_files.append(
+                        f" • removal hidden/system file: {file_path}"
+                    )
             else:
                 if log_callback:
-                    log_callback(f"Skipped removing file: {file_path}")
+                    log_callback(f" • Skipped removing file: {file_path}")
         else:
             # If no callback, ask for confirmation in console
             confirm = ""
@@ -219,7 +221,7 @@ class PhotoOrganizer:
 
     def delete_empty_folders(
         self, root: Path, log_callback=None, remove_confirmation_callback=None
-    ) -> None:
+    ) -> int:
         """Recursively delete empty folders and their hidden/system files
 
         Args:
@@ -229,6 +231,7 @@ class PhotoOrganizer:
         """
         while True:
             empty_found = False
+            counter = 0
             for current_dir, subdirs, _ in os.walk(root, topdown=False):
                 for folder in subdirs:
                     full_path = Path(current_dir) / Path(folder)
@@ -246,6 +249,7 @@ class PhotoOrganizer:
                             # Now try to remove the empty directory
                             if not os.listdir(full_path):
                                 os.rmdir(full_path)
+                                counter += 1
                                 empty_found = True
                                 logging.info("Removed empty folder: %s", full_path)
 
@@ -253,10 +257,9 @@ class PhotoOrganizer:
                         logging.warning("Failed to remove %s: %s", full_path, e)
 
             if not empty_found:
-                if log_callback:
-                    log_callback("No more empty folders found.")
                 logging.info("No more empty folders found.")
-                break
+                break  # Exit loop if no empty folders were found
+        return counter
 
     def organize_photos(
         self,
@@ -278,6 +281,7 @@ class PhotoOrganizer:
             remove_empty: Whether to remove empty folders after processing
             progress_callback: Optional callback function to update GUI progress
             log_callback: Optional callback for logging messages
+            remove_confirmation_callback: Optional callback for file removal confirmation
         """
 
         # Get source path
@@ -294,13 +298,35 @@ class PhotoOrganizer:
         if progress_callback:
             progress_callback(self.processed_files, self.total_files, self.failed_count)
 
+        if not files_to_process:
+            if log_callback:
+                log_callback(" • No files found to process.")
+            return
+
         # Create destination path if it doesn't exist
         file_new_path = Path(destination_folder)
+
+        # start processing files
+        if log_callback:
+            # Log a clear summary of the task at the start
+            summary_lines = [
+                "📦 Photo Organizer Task Summary",
+                "-" * 50,
+                f"Source folder       : {source_folder}",
+                f"Destination folder  : {destination_folder}",
+                f"Total files found   : {self.total_files}",
+                f"Sort by day         : {'Yes' if sort_by_day else 'No'}",
+                f"Remove empty folders: {'Yes' if remove_empty else 'No'}",
+                "-" * 50,
+                "",
+            ]
+            for line in summary_lines:
+                log_callback(line)
 
         # Process each file
         for file in files_to_process:
             if log_callback:
-                log_callback(f"Processing {file.name}")
+                log_callback(f" • Processing: {file.name}")
 
             # Check if file has a valid date
             try:
@@ -334,7 +360,7 @@ class PhotoOrganizer:
                             )
                         if log_callback:
                             log_callback(
-                                f"File {file.name} already exists in {file_new_path}, skipping."
+                                f"   File {file.name} already exists in {file_new_path}, skipping."
                             )
                         continue  # This prevents the file from being moved
 
@@ -360,32 +386,79 @@ class PhotoOrganizer:
                             )
 
                         if log_callback:
-                            log_callback(f"Moved {file.name} to {new_file_path}")
+                            log_callback(f"   Moved {file.name} to {new_file_path}")
 
                     except Exception as e:
+                        if log_callback:
+                            log_callback(f"   Failed to move {file.name}: {e}")
                         logging.error("Failed to move %s: %s", file.name, e)
                         self.failed_files.append(str(file))
                         self.failed_count += 1
 
                 else:
+                    # If no date found, log and skip the file
+                    if log_callback:
+                        log_callback(f"   No date found for {file.name}")
                     logging.warning("No date found for %s", file.name)
+                    
                     self.failed_files.append(str(file))
                     self.failed_count += 1
+                    if progress_callback:
+                        progress_callback(
+                            self.processed_files,
+                            self.total_files,
+                            self.failed_count,
+                        )
+                        
             except Exception as e:
+                if log_callback:
+                    log_callback(f"   Failed to get date for {file.name}: {e}")
                 logging.error("Failed to get date for %s: %s", file.name, e)
                 self.failed_files.append(str(file))
                 self.failed_count += 1
+                if progress_callback:
+                    progress_callback(
+                        self.processed_files,
+                        self.total_files,
+                        self.failed_count,
+                    )
                 continue
 
         if log_callback:
-            log_callback("All files processed.")
+            # Show a summary of the finished task
+            summary_lines = [
+                "",
+                "-" * 50,
+                "☑️ Sorting completed successfully:",
+                "",
+                f" • Total files processed : {self.processed_files}",
+                f" • Total files failed    : {self.failed_count}",
+                "-" * 50,
+            ]
+            for line in summary_lines:
+                log_callback(line)
+
         # After processing all files, remove empty folders if requested
         if remove_empty:
             if log_callback:
-                log_callback("Removing empty folders...")
-            self.delete_empty_folders(
+                summary_lines = ["🧹 Cleanup — Removing empty folders:", "-" * 50, ""]
+                for line in summary_lines:
+                    log_callback(line)
+
+            empty_folders_removed = self.delete_empty_folders(
                 source_path, log_callback, remove_confirmation_callback
             )
+
+            if log_callback:
+                if empty_folders_removed == 0:
+                    log_callback(" • No empty folders found.")
+                else:
+                    summary_lines = [
+                        "---",
+                        f" • Empty folders removed : {empty_folders_removed}",
+                    ]
+                    for line in summary_lines:
+                        log_callback(line)
 
 
 # main
