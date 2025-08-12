@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtGui import QFontDatabase, QTextOption
+from PyQt6 import QtGui
 
 from MainWindow import Ui_MainWindow
 from ProgressWindow import Ui_ProgressWindow
@@ -179,7 +179,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # Show progress window as a modal dialog to the main window
         self.progress_window = ProgressDialog(self, self.worker)
         self.progress_window.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
-        # Show as modal (non-blocking to the worker thread) dialog 
+        # Show as modal (non-blocking to the worker thread) dialog
         self.progress_window.open()
 
         # Connect the worker thread signals to main thread handlers
@@ -187,7 +187,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.worker.progress_updated.connect(self.progress_window.update_progress)
         self.worker.log_updated.connect(self.progress_window.update_logs)
         # removal confirmation handling
-        self.worker.remove_confirmation.connect(self.progress_window.handle_removal_confirmation)
+        self.worker.remove_confirmation.connect(
+            self.progress_window.handle_removal_confirmation
+        )
         # Error handling
         self.worker.error.connect(
             lambda e: QtWidgets.QMessageBox.critical(
@@ -211,23 +213,27 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         for line in summary_lines:
             self.progress_window.update_logs(line)
 
+
 class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
     def __init__(self, parent, worker):
         super().__init__(parent)
         self.setupUi(self)
         self.worker = worker
-        
+
         # Ensure this is a top-level dialog (not a SubWindow embedded in the main window)
         self.setWindowFlags(QtCore.Qt.WindowType.Dialog | QtCore.Qt.WindowType.Window)
         self.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
         self.setModal(True)
 
         # Use a monospaced font and configure for clean log display
-        fixed = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        fixed = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.SystemFont.FixedFont)
         fixed.setPointSize(10)  # Optimal size for readability
         fixed.setStyleHint(fixed.StyleHint.TypeWriter)
         self.plainTextEditLogs.setFont(fixed)
-        self.plainTextEditLogs.setWordWrapMode(QTextOption.WrapMode.NoWrap)
+        self.plainTextEditLogs.setWordWrapMode(QtGui.QTextOption.WrapMode.NoWrap)
+
+        # Hide timelabel until function is implemented
+        self.labelTime.hide()
 
     def update_progress(self, current: int, total: int, failed: int) -> None:
         """Update the progress bar and labels"""
@@ -243,7 +249,7 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
     def update_logs(self, log: str) -> None:
         """Append log messages to the logs text area"""
         self.plainTextEditLogs.appendPlainText(log)
-        
+
     def handle_removal_confirmation(self, file_path: str):
         """
         Handles the removal confirmation signal from the worker thread.
@@ -258,8 +264,6 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         )
         confirmed = response == QtWidgets.QMessageBox.StandardButton.Yes
         self.worker.handle_confirmation_response(confirmed)
-        
-    
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@
 
 
 from pathlib import Path
-from typing import Callable, Union, Optional
+from typing import Union, Optional
 import os
 from datetime import datetime, date
 import logging
@@ -55,12 +55,52 @@ class PhotoOrganizer:
 
     def is_valid_file(self, file: Path) -> bool:
         """Check if file should be processed."""
-        excluded_files = {"Thumbs.db", "desktop.ini"}  # Use set for faster lookup
-        return (
-            file.is_file()
-            and not file.name.startswith((".", "~$"))  # Combine prefix checks
-            and file.name not in excluded_files
-        )
+        # Basic file checks
+        if not file.is_file():
+            return False
+
+        # Skip hidden/system files
+        if file.name.startswith((".", "~$")):
+            return False
+
+        # Skip excluded system files
+        excluded_files = {"Thumbs.db", "desktop.ini"}
+        if file.name in excluded_files:
+            return False
+
+        # Check file extension against supported formats
+        supported_extensions = {
+            # Image formats
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".tiff",
+            ".webp",
+            ".heic",
+            ".heif",
+            ".raw",
+            ".cr2",
+            ".nef",
+            # Video formats
+            ".mp4",
+            ".avi",
+            ".mov",
+            ".mkv",
+        }
+
+        if file.suffix.lower() not in supported_extensions:
+            return False
+
+        # Skip empty files
+        try:
+            if file.stat().st_size == 0:
+                return False
+        except OSError:
+            return False
+
+        return True
 
     def get_file_date(self, file: Path) -> Optional[date]:
         """Get creation date from file based on type.
@@ -229,9 +269,9 @@ class PhotoOrganizer:
             log_callback: Optional callback function to log messages
             remove_confirmation_callback: Optional callback function to confirm file removal
         """
+        counter = 0
         while True:
             empty_found = False
-            counter = 0
             for current_dir, subdirs, _ in os.walk(root, topdown=False):
                 for folder in subdirs:
                     full_path = Path(current_dir) / Path(folder)
@@ -261,6 +301,7 @@ class PhotoOrganizer:
                 break  # Exit loop if no empty folders were found
         return counter
 
+    # main function
     def organize_photos(
         self,
         source_folder: Union[str, Path],
@@ -390,7 +431,7 @@ class PhotoOrganizer:
 
                     except Exception as e:
                         if log_callback:
-                            log_callback(f"   Failed to move {file.name}: {e}")
+                            log_callback(f"   ❌ Failed to move {file.name}: {e}")
                         logging.error("Failed to move %s: %s", file.name, e)
                         self.failed_files.append(str(file))
                         self.failed_count += 1
@@ -398,9 +439,9 @@ class PhotoOrganizer:
                 else:
                     # If no date found, log and skip the file
                     if log_callback:
-                        log_callback(f"   No date found for {file.name}")
+                        log_callback(f"   ❌ No date found for {file.name}")
                     logging.warning("No date found for %s", file.name)
-                    
+
                     self.failed_files.append(str(file))
                     self.failed_count += 1
                     if progress_callback:
@@ -409,10 +450,10 @@ class PhotoOrganizer:
                             self.total_files,
                             self.failed_count,
                         )
-                        
+
             except Exception as e:
                 if log_callback:
-                    log_callback(f"   Failed to get date for {file.name}: {e}")
+                    log_callback(f"   ❌ Failed to get date for {file.name}: {e}")
                 logging.error("Failed to get date for %s: %s", file.name, e)
                 self.failed_files.append(str(file))
                 self.failed_count += 1
@@ -433,8 +474,20 @@ class PhotoOrganizer:
                 "",
                 f" • Total files processed : {self.processed_files}",
                 f" • Total files failed    : {self.failed_count}",
-                "-" * 50,
             ]
+
+            if self.failed_files:
+                summary_lines.extend(
+                    [
+                        "",
+                        "❌ Failed files:",
+                    ]
+                )
+                for failed in self.failed_files:
+                    summary_lines.append(f"   • {failed}")
+
+            summary_lines.append("-" * 50)
+
             for line in summary_lines:
                 log_callback(line)
 
@@ -454,7 +507,6 @@ class PhotoOrganizer:
                     log_callback(" • No empty folders found.")
                 else:
                     summary_lines = [
-                        "---",
                         f" • Empty folders removed : {empty_folders_removed}",
                     ]
                     for line in summary_lines:
