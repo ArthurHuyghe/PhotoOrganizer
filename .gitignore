@@ -2,6 +2,7 @@
 .vs/
 .vscode/
 *.autosave
+.github/copilot-instructions.md
 
 # Python
 __pycache__/
@@ -16,6 +17,7 @@ dist/
 # Project Specific
 PhotoOrganizer_v2.exe
 Playground/
+tests/
 
 # Legacy/Archive
-bad prototypes/
+archive/bad prototypes/

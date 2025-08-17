@@ -1,4 +1,4 @@
-$source = 'C:\Users\Arthu\Pictures\test_exif_tool'
+$source = 'C:\Users\Arthu\Pictures\test'
 Get-ChildItem -Attributes !Directory $source -Recurse | 
 Foreach-Object {
     if ($_.DirectoryName -eq $source) {
