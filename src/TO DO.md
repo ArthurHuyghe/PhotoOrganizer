@@ -9,12 +9,20 @@
 - [x] Update icons
 - [x] Add licensing information
 - [x] Package application
-- [x] build installer
+- [x] Build installer
+- [x] Update README.md
+- [ ] Implement file type tests
+
 
 
 # To Do for .1 release
 
+- [ ] Remember last used paths
+- [ ] Implement keyboard shortcuts
+- [ ] Implement drag and drop functionality
+- [ ] Prevent error file movement to different drive
+- [ ] Prevent closing of application during processing?
 - [ ] Change color of progress bar when finished
-- [ ] Implement speed optimalizations (see chat)
+- [ ] Implement speed optimizations (see chat)
 - [ ] Add time taken calculation
 - [ ] Handle duplicate files?

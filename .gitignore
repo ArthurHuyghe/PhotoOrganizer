@@ -10,12 +10,12 @@ __pycache__/
 .venv/
 
 # Build and Distribution
-PhotoOrganizer_v3/build/
-PhotoOrganizer_v3/dist/
+build/
+dist/
 
 # Project Specific
 PhotoOrganizer_v2.exe
-PhotoOrganizer_v3/test.py
+Playground/
 
 # Legacy/Archive
 bad prototypes/

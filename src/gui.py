@@ -5,8 +5,8 @@ from pathlib import Path
 from PyQt6 import QtWidgets, QtCore
 from PyQt6 import QtGui
 
-from MainWindow import Ui_MainWindow
-from ProgressWindow import Ui_ProgressWindow
+from assets.MainWindow import Ui_MainWindow
+from assets.ProgressWindow import Ui_ProgressWindow
 from PhotoOrganizer_v3 import PhotoOrganizer
 
 # get base directory for reference to resource files

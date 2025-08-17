@@ -1,70 +1,168 @@
-# Photo Organizer 
+# Photo Organizer v3.0
 
-This  script is designed to help you organize and sort your photos and files in a structured manner based on a specified date format. It provides a graphical user interface (GUI) for user input and offers features to streamline the organization process.
+A Python application that automatically organizes your photos and videos into date-based folder structures using metadata analysis. Built with PyQt6 for a modern, user-friendly interface.
 
-# v3: Python script
+<img src="assets/icons/Photo%20Organizer%20icon.ico" alt="Photo Organizer v3.0" width="64" height="64">
 
-I ported the script to python and made some improvements along the way. It now supports more file types and has a better UI. I also optimized the script for use on network drives.
+## ✨ Features
 
+- **📂 Intelligent Date Detection**: Extracts creation dates from EXIF data (photos) and metadata (videos)
+- **🎯 Multiple File Format Support**: 
+  - **Images**: JPG, PNG, GIF, BMP, TIFF, WebP, HEIC, HEIF, RAW, CR2, NEF
+  - **Videos**: MP4, AVI, MOV, MKV
+- **📅 Flexible Organization**: Sort by month (YYYY/MM) or day (YYYY/MM/DD)
+- **🧹 Smart Cleanup**: Optional removal of empty folders after processing
+- **🖥️ Modern GUI**: Intuitive PyQt6 interface with real-time progress tracking
+- **📊 Detailed Logging**: Comprehensive progress reports and error handling
+- **🔒 Safe Processing**: Confirmation dialogs for file removal operations
 
-# v2: Powershell script
-## Table of Contents
+## 🚀 Quick Start
 
-1. [Requirements](#requirements)
-2. [Usage](#usage)
-3. [Features](#features)
-4. [Warnings](#warnings)
-5. [Contributing](#contributing)
+### Prerequisites
 
+- Python 3.8 or higher
+- Windows OS (tested on Windows 11)
 
-## Requirements 
+### Using the Pre-built Executable
 
-To use this script, you will need the following:
+Download the latest release from the [Releases](../../releases) page and run the installer.
 
-- Windows operating system.
-- PowerShell installed on your system. (preferably 7.x or higher, the script is not tested for lower versions but they could work...)
-- .NET Framework and Windows Presentation Framework (WPF) for the GUI interface. (Should be installed by default if Powershell is installed)
+### Installation
 
-## Usage
-
-Follow these steps to use the script:
-
-1. **Run the Script**: Simply execute the script by running it with PowerShell from within the folder the script and its dependencies are placed.
-
-   ```powershell
-   .\PhotoOrganizer_v2.ps1
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/PhotoOrganizer.git
+   cd PhotoOrganizer
    ```
 
-2. **Graphical User Interface (GUI)**: The script will launch a GUI where you can specify the following options:
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-   - Source Folder: The directory where your photos and files are located.
-   - Destination Folder: The directory where organized files will be moved.
-   - Date Format: Choose a date format that suits your preference.
-   - Clean Up Folders: Option to clean up empty folders in the source directory.
+3. **Run the application**
+   ```bash
+   python src/gui.py
+   ```
 
-3. **Proceed with Sorting**: Once you have configured the options, click the "Sort" button. The script will start sorting your files based on the specified date format.
+## 📖 Usage
 
-4. **Clean Up**: If you enabled the "Clean Up Folders" option, the script will also clean up empty folders in the source directory.
+1. **Launch the Application**: Run [`src/gui.py`](src/gui.py) or use the installed executable
+2. **Select Source Folder**: Choose the folder containing your photos/videos
+3. **Select Destination Folder**: Choose where organized files should be placed
+4. **Configure Options**:
+   - **Sort into subfolders by day**: Creates YYYY/MM/DD structure instead of YYYY/MM
+   - **Remove empty folders after sorting**: Cleans up empty directories
+5. **Start Sorting**: Click "🚀 Start Sorting" and monitor progress
 
-5. **Completion**: The GUI will display a completion message when the sorting and cleanup are finished.
+### Example Output Structure
 
-## Features
+```
+Destination Folder/
+├── 2023/
+│   ├── 01/
+│   │   ├── 15/          (if "Sort by day" enabled)
+│   │   │   ├── IMG_001.jpg
+│   │   │   └── VID_002.mp4
+│   │   └── 20/
+│   └── 02/
+└── 2024/
+    └── 03/
+```
 
-- **Graphical User Interface (GUI)**: The script provides an easy-to-use GUI for configuring settings and initiating the sorting process.
+## 🛠️ Core Components
 
-- **Flexible Date Formatting**: Choose a date format that matches your file naming convention.
+- **[`src/PhotoOrganizer_v3.py`](src/PhotoOrganizer_v3.py)**: Main processing engine with metadata extraction
+- **[`src/gui.py`](src/gui.py)**: PyQt6 GUI application with threading support
+- **[`assets/MainWindow.py`](assets/MainWindow.py)**: Main window UI components
+- **[`assets/ProgressWindow.py`](assets/ProgressWindow.py)**: Progress tracking dialog
 
-- **Progress Bar**: Track the progress of the sorting process with a visual progress bar.
+## 🔧 Development
 
-- **Clean-Up Option**: Choose to clean up empty folders in the source directory after sorting.
+### Project Structure
 
-## Warnings
+```
+PhotoOrganizer/
+├── src/                    # Main application code
+│   ├── gui.py             # GUI application entry point
+│   ├── PhotoOrganizer_v3.py # Core processing logic
+│   └── TO DO.md           # Development roadmap
+├── assets/                # UI components and icons
+│   ├── MainWindow.py      # Main window UI
+│   ├── ProgressWindow.py  # Progress dialog UI
+│   └── icons/            # Application icons
+├── archive/               # Legacy versions
+└── InstallForge/          # Installer configuration
+```
 
-- This script can modify your files and move them to new folders. ( I'm not responisble for lose of data. Please ensure that you have backup copies of your files before using it. )
+### Building from Source
 
-- Be cautious while using this script in a production environment. Test it on a small set of files to understand its behavior and ensure it meets your requirements.
+1. **Install PyInstaller**
+   ```bash
+   pip install pyinstaller
+   ```
 
-## Contributing
+2. **Create executable**
+   ```bash
+   pyinstaller gui.py.spec
+   ```
 
-Contributions are welcome! If you have suggestions, improvements, or bug fixes for this script, please feel free to submit a pull request.
+## ⚠️ Important Notes
 
+- **Backup Your Files**: Always maintain backups before processing large photo collections
+- **File Safety**: Existing files with identical names are skipped (not overwritten)
+- **Hidden Files**: System and hidden files (Thumbs.db, .DS_Store) are automatically excluded
+
+## 📋 Supported Metadata Sources
+
+### Images
+- **Primary**: `DateTimeOriginal` (EXIF tag 306)
+- **Fallback**: `DateTime` (EXIF tag 132)
+- **Formats**: All common EXIF-compatible formats including HEIC/HEIF
+
+### Videos
+- **Primary**: `recorded_date`
+- **Fallback**: `encoded_date`, `tagged_date`, `file_last_modification_date`
+- **Formats**: MP4, AVI, MOV, MKV (using PyMediaInfo for metadata extraction)
+
+## 🔄 Version History
+
+- **v3.0** (Current): Complete Python rewrite with PyQt6 GUI
+- **v2.0**: PowerShell implementation (archived)
+- **v1.0**: Initial prototype (archived)
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Third-Party Attributions
+
+This software includes icons from Twitter Twemoji, licensed under CC-BY 4.0:
+- Camera icon (1f4f7.svg) 
+- Folder separator icon (1f5c2.svg)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### Development Roadmap
+
+See [`src/TO DO.md`](src/TO DO.md) for current development priorities.
+
+## 🐛 Issues & Support
+
+If you encounter any issues or have questions:
+
+1. Check the [Issues](../../issues) page for existing reports
+2. Create a new issue with:
+   - Your operating system
+   - Python version
+   - Steps to reproduce the problem
+   - Error messages (if any)
+
+## 🙏 Acknowledgments
+
+- **PIL/Pillow**: Image processing and EXIF data extraction
+- **PyMediaInfo**: Video metadata parsing
+- **PyQt6**: Modern GUI framework
+- **pillow-heif**: HEIC/HEIF format support
