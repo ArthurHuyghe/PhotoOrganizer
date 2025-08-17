@@ -1,16 +1,21 @@
-/.vs
-/.vscode
-PhotoOrganizer_v2.exe
-/bad prototypes
-/.venv
-/__pycache__
+# IDEs and Editors
+.vs/
+.vscode/
+*.autosave
+
+# Python
+__pycache__/
 *.pyc
 *.pyo
-*.log
-*.db
-.DS_Store
-Thumbs.db
-*.bak
-*.tmp
-PhotoOrganizer_v3/mainWindow.ui.autosave
+.venv/
+
+# Build and Distribution
+PhotoOrganizer_v3/build/
+PhotoOrganizer_v3/dist/
+
+# Project Specific
+PhotoOrganizer_v2.exe
 PhotoOrganizer_v3/test.py
+
+# Legacy/Archive
+bad prototypes/

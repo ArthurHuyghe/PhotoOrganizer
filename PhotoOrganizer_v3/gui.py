@@ -1,6 +1,6 @@
 # PhotoOrganizer_v3/gui.py
 # This script creates a simple GUI for the Photo Organizer application using PyQt6.
-import sys
+import sys, os
 from pathlib import Path
 from PyQt6 import QtWidgets, QtCore
 from PyQt6 import QtGui
@@ -8,6 +8,18 @@ from PyQt6 import QtGui
 from MainWindow import Ui_MainWindow
 from ProgressWindow import Ui_ProgressWindow
 from PhotoOrganizer_v3 import PhotoOrganizer
+
+# get base directory for reference to resource files
+basedir = Path(__file__).parent
+# set up application ID for taskbar grouping
+try:
+    from ctypes import windll  # Only exists on Windows.
+
+    myappid = "Huyghe.Arthur.PhotoOrganizer.3.0"
+    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+except ImportError:
+    print("Failed to set application ID.")
+    pass
 
 
 # Worker classes
@@ -207,11 +219,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_sorting_finished(self):
         """Called when sorting is complete"""
 
-        # Update the title only; summary is already printed by organizer in a styled box
+        # Update the title and logs in the progress window, changes color of progress bar
         self.progress_window.setWindowTitle("Sorting Complete!")
         summary_lines = ["", "-" * 50, "✅ Photo Organizer Finished!"]
         for line in summary_lines:
             self.progress_window.update_logs(line)
+
+        # TODO: Change color of progress bar to green while replicating Windows 11 style
 
 
 class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
@@ -269,6 +283,10 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
 if __name__ == "__main__":
     # Create the application and main window
     app = QtWidgets.QApplication(sys.argv)
+    app.setWindowIcon(
+        QtGui.QIcon(str(basedir / Path("icons/Photo Organizer icon.ico")))
+    )
+    app.setApplicationName("Photo Organizer v3")
 
     window = MainWindow()
     window.show()

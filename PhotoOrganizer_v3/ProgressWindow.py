@@ -66,7 +66,7 @@ class Ui_ProgressWindow(object):
     def retranslateUi(self, ProgressWindow):
         _translate = QtCore.QCoreApplication.translate
         ProgressWindow.setWindowTitle(_translate("ProgressWindow", "Sorting Progress"))
-        self.progressBar.setFormat(_translate("ProgressWindow", "%p% - 0 files/sec"))
+        self.progressBar.setFormat(_translate("ProgressWindow", "%p %"))
         self.labelRemaining.setText(_translate("ProgressWindow", "🔄️ Remaining: 0"))
         self.labelSorted.setText(_translate("ProgressWindow", "   ✅ Sorted: 0"))
         self.labelFailed.setText(_translate("ProgressWindow", "   ❌ Failed: 0"))

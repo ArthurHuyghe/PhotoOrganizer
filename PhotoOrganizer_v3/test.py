@@ -1,72 +1,52 @@
-from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, QEventLoop
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QMessageBox
+from PyQt6.QtWidgets import QApplication, QWidget, QHBoxLayout, QProgressBar, QLabel
+from PyQt6.QtCore import Qt
 import sys
-import time
+
+LINE_PROGRESS_STYLE = """
+QProgressBar {
+    border: none;
+    background-color: #e0e0e0;   /* thin gray track */
+    border-radius: 2px;
+}
+QProgressBar::chunk {
+    background-color: #0078d4;   /* Windows blue */
+    border-radius: 2px;
+}
+"""
 
 
-class Worker(QObject):
-    ask_user = pyqtSignal(str)
-    user_response = pyqtSlot(str)
+class LineProgress(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
-    def __init__(self):
-        super().__init__()
-        self.response = None
-        self.loop = None
+        self.bar = QProgressBar()
+        self.bar.setRange(0, 100)
+        self.bar.setTextVisible(False)  # text will be in the label
+        self.bar.setFixedHeight(4)  # thin line
+        self.bar.setStyleSheet(LINE_PROGRESS_STYLE)
 
-    def start_work(self):
-        print("Worker: Starting work...")
-        time.sleep(1)  # Simulate work
-
-        print("Worker: Need user input now...")
-        self.loop = QEventLoop()
-        self.ask_user.emit("Do you want to continue?")
-        self.loop.exec()  # Blocks here until loop.quit() is called
-
-        print(f"Worker: Got user response: {self.response}")
-        print("Worker: Resuming work...")
-        time.sleep(1)
-        print("Worker: Done.")
-
-    @pyqtSlot(str)
-    def on_user_response(self, answer):
-        self.response = answer
-        if self.loop and self.loop.isRunning():
-            self.loop.quit()
-
-
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("PyQt Thread Interaction")
-        self.setGeometry(100, 100, 400, 200)
-
-        self.button = QPushButton("Start Work", self)
-        self.button.clicked.connect(self.start_worker)
-        self.worker_thread = None
-
-    def start_worker(self):
-        self.worker = Worker()
-        self.worker_thread = QThread()
-        self.worker.moveToThread(self.worker_thread)
-
-        self.worker_thread.started.connect(self.worker.start_work)
-        self.worker.ask_user.connect(self.on_ask_user)
-        self.worker.user_response = self.worker.on_user_response
-
-        self.worker_thread.start()
-
-    def on_ask_user(self, question):
-        answer = QMessageBox.question(
-            self,
-            "User Input Needed",
-            question,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        self.label = QLabel("0%")
+        self.label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
-        result = "yes" if answer == QMessageBox.StandardButton.Yes else "no"
-        self.worker.user_response(result)
+        self.label.setStyleSheet("color:#555;")  # subtle gray like in your image
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(10)
+        layout.addWidget(self.bar, 1)  # bar stretches
+        layout.addWidget(self.label)  # percentage at the far right
+
+        self.bar.valueChanged.connect(lambda v: self.label.setText(f"{v}%"))
+
+    def setValue(self, v: int):
+        self.bar.setValue(v)
 
 
-app = QApplication(sys.argv)
-window = MainWindow()
-window.show()
-sys.exit(app.exec())
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    w = LineProgress()
+    w.setValue(25)  # example
+    w.resize(420, 70)
+    w.show()
+    sys.exit(app.exec())
