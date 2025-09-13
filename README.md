@@ -8,7 +8,7 @@ A Python application that automatically organizes your photos and videos into da
 
 - **📂 Intelligent Date Detection**: Extracts creation dates from EXIF data (photos) and metadata (videos)
 - **🎯 Multiple File Format Support**: 
-  - **Images**: JPG, PNG, GIF, BMP, TIFF, WebP, HEIC, HEIF, RAW, CR2, NEF
+  - **Images**: All common EXIF-compatible formats including HEIC/HEIF
   - **Videos**: MP4, AVI, MOV, MKV
 - **📅 Flexible Organization**: Sort by month (YYYY/MM) or day (YYYY/MM/DD)
 - **🧹 Smart Cleanup**: Optional removal of empty folders after processing
@@ -111,14 +111,14 @@ PhotoOrganizer/
 
 - **Backup Your Files**: Always maintain backups before processing large photo collections
 - **File Safety**: Existing files with identical names are skipped (not overwritten)
-- **Hidden Files**: System and hidden files (Thumbs.db, .DS_Store) are automatically excluded
+- **Hidden Files**: System and hidden files (Thumbs.db, desktop.ini, files starting with "." or "~$") are automatically excluded
 
 ## 📋 Supported Metadata Sources
 
 ### Images
-- **Primary**: `DateTimeOriginal` (EXIF tag 306)
-- **Fallback**: `DateTime` (EXIF tag 132)
-- **Formats**: All common EXIF-compatible formats including HEIC/HEIF
+- **Primary**: `DateTimeOriginal` (EXIF tag 36867 in Sub-IFD)
+- **Fallback**: `DateTime` (EXIF tag 306)
+- **Formats**: JPG, JPEG, PNG, TIFF, WebP, HEIC, HEIF, RAW, CR2, NEF, AVIF
 
 ### Videos
 - **Primary**: `recorded_date`
@@ -130,16 +130,6 @@ PhotoOrganizer/
 - **v3.0** (Current): Complete Python rewrite with PyQt6 GUI
 - **v2.0**: PowerShell implementation (archived)
 - **v1.0**: Initial prototype (archived)
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-### Third-Party Attributions
-
-This software includes icons from Twitter Twemoji, licensed under CC-BY 4.0:
-- Camera icon (1f4f7.svg) 
-- Folder separator icon (1f5c2.svg)
 
 ## 🤝 Contributing
 
@@ -166,3 +156,13 @@ If you encounter any issues or have questions:
 - **PyMediaInfo**: Video metadata parsing
 - **PyQt6**: Modern GUI framework
 - **pillow-heif**: HEIC/HEIF format support
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Third-Party Attributions
+
+This software includes icons from Twitter Twemoji, licensed under CC-BY 4.0:
+- Camera icon (1f4f7.svg) 
+- Folder separator icon (1f5c2.svg)

@@ -8,6 +8,7 @@
 from pathlib import Path
 from typing import Union, Optional
 import os
+import shutil
 from datetime import datetime, date
 import logging
 import ctypes
@@ -22,7 +23,7 @@ register_heif_opener(thumbnails=False)
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
@@ -74,8 +75,6 @@ class PhotoOrganizer:
             ".jpg",
             ".jpeg",
             ".png",
-            ".gif",
-            ".bmp",
             ".tiff",
             ".webp",
             ".heic",
@@ -83,6 +82,7 @@ class PhotoOrganizer:
             ".raw",
             ".cr2",
             ".nef",
+            ".avif",
             # Video formats
             ".mp4",
             ".avi",
@@ -112,8 +112,6 @@ class PhotoOrganizer:
             ".jpg",
             ".jpeg",
             ".png",
-            ".gif",
-            ".bmp",
             ".tiff",
             ".webp",
             ".heic",
@@ -121,35 +119,51 @@ class PhotoOrganizer:
             ".raw",
             ".cr2",
             ".nef",
-        }:
+            ".avif",
+        }:    
             try:
                 image = Image.open(file)
                 exif_data = image.getexif()
                 if exif_data:
                     # Debugging: Log all EXIF tags
                     debug_exif_tags(exif_data)
-
-                    # Try DateTimeOriginal first (primary date taken tag)
-                    for tag, value in exif_data.items():
-                        tag_name = TAGS.get(tag)
-                        if tag_name in ["DateTimeOriginal", "DateTime"]:
+                    sub_ifd = exif_data.get_ifd(0x8769)  # EXIF Sub-IFD
+                    if sub_ifd:
+                        # Debugging: Log all EXIF Sub-IFD tags
+                        # debug_exif_tags(sub_ifd)
+                        if 36867 in sub_ifd:
+                            # DateTimeOriginal tag
+                            logging.info("Found DateTimeOriginal in EXIF Sub-IFD: %s", sub_ifd[36867])
                             try:
                                 return datetime.strptime(
-                                    value, "%Y:%m:%d %H:%M:%S"
+                                    sub_ifd[36867], "%Y:%m:%d %H:%M:%S"
                                 ).date()
                             except ValueError:
-                                logging.debug(
-                                    "Invalid date format in EXIF %s: %s",
-                                    tag_name,
-                                    value,
-                                )
-                            if (
-                                tag_name == "DateTimeOriginal"
-                            ):  # If we found the primary tag, no need to check DateTime
-                                break
-
+                                logging.warning("Invalid date format in EXIF Sub-IFD: %s", sub_ifd[36867])
+                        else:
+                            logging.info("DateTimeOriginal not found.")
+                            if 306 in exif_data:
+                                # DateTime tag
+                                logging.info("Found DateTime in EXIF: %s", exif_data[306])
+                                try:
+                                    return datetime.strptime(
+                                        exif_data[306], "%Y:%m:%d %H:%M:%S"
+                                    ).date()
+                                except ValueError:
+                                    logging.warning("Invalid date format in EXIF: %s", exif_data[306])
+                    else:
+                        logging.info("No EXIF Sub-IFD found in image: %s", file.name)
+                        if 306 in exif_data:
+                            # DateTime tag
+                            logging.info("Found DateTime in EXIF: %s", exif_data[306])
+                            try:
+                                return datetime.strptime(
+                                    exif_data[306], "%Y:%m:%d %H:%M:%S"
+                                ).date()
+                            except ValueError:
+                                logging.warning("Invalid date format in EXIF: %s", exif_data[306])
                 else:
-                    logging.debug("No EXIF data found in image: %s", file.name)
+                    logging.info("No EXIF data found in image: %s", file.name)
 
             except Exception as e:
                 logging.warning("Error reading image metadata from %s: %s", file, e)
@@ -191,12 +205,12 @@ class PhotoOrganizer:
                                         except ValueError:
                                             continue
                                 except Exception as e:
-                                    logging.debug(
+                                    logging.warning(
                                         "Failed parsing %s: %s", date_field, e
                                     )
                                     continue
 
-                        logging.debug(
+                        logging.warning(
                             "No valid date found in video metadata: %s", file.name
                         )
             except Exception as e:
@@ -291,7 +305,7 @@ class PhotoOrganizer:
                                 os.rmdir(full_path)
                                 counter += 1
                                 empty_found = True
-                                logging.info("Removed empty folder: %s", full_path)
+                                logging.debug("Removed empty folder: %s", full_path)
 
                     except OSError as e:
                         logging.warning("Failed to remove %s: %s", full_path, e)
@@ -416,7 +430,7 @@ class PhotoOrganizer:
 
                     try:
                         # Move the file to new location
-                        file.rename(new_file_path)
+                        shutil.move(str(file), str(new_file_path))
                         # Increment processed files count
                         self.processed_files += 1
                         if progress_callback:
@@ -517,8 +531,8 @@ class PhotoOrganizer:
 if __name__ == "__main__":
     organizer = PhotoOrganizer()
 
-    source = "C:\\Users\\Arthu\\Pictures\\test"
-    dest = "C:\\Users\\Arthu\\Pictures\\Camera Roll"
+    source = r"C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\tests\resources"
+    dest = r"C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\tests\result"
 
     logging.info("Processing files from: %s", source)
     logging.info("Destination folder: %s", dest)
@@ -526,7 +540,7 @@ if __name__ == "__main__":
     organizer.organize_photos(
         source_folder=source,
         destination_folder=dest,
-        sort_by_day=False,
+        sort_by_day=True,
         remove_empty=True,
     )
 

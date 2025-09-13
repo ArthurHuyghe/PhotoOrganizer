@@ -284,7 +284,7 @@ if __name__ == "__main__":
     # Create the application and main window
     app = QtWidgets.QApplication(sys.argv)
     app.setWindowIcon(
-        QtGui.QIcon(str(basedir / Path("icons/Photo Organizer icon.ico")))
+        QtGui.QIcon(str(basedir / Path("assets/icons/Photo Organizer icon.ico")))
     )
     app.setApplicationName("Photo Organizer v3")
 

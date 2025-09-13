@@ -11,7 +11,8 @@
 - [x] Package application
 - [x] Build installer
 - [x] Update README.md
-- [ ] Implement file type tests
+- [x] test file types
+- [x] Prevent error file movement to different drive
 
 
 
@@ -20,9 +21,8 @@
 - [ ] Remember last used paths
 - [ ] Implement keyboard shortcuts
 - [ ] Implement drag and drop functionality
-- [ ] Prevent error file movement to different drive
 - [ ] Prevent closing of application during processing?
 - [ ] Change color of progress bar when finished
 - [ ] Implement speed optimizations (see chat)
 - [ ] Add time taken calculation
-- [ ] Handle duplicate files?
+- [ ] Handle duplicate files? (counter + list)
