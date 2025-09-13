@@ -15,9 +15,13 @@ build/
 dist/
 
 # Project Specific
+src/assets/LastUseddestination.txt
+src/assets/LastUsedSource.txt
 PhotoOrganizer_v2.exe
 Playground/
 tests/
 
 # Legacy/Archive
 archive/bad prototypes/
+
+

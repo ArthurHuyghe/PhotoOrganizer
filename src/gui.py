@@ -100,18 +100,65 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.checkBoxSortByDay.setChecked(self.sort_by_day_enabled)
         self.checkBoxRemoveEmpty.setChecked(self.remove_empty_folders_enabled)
 
+        # Initialize and load last used folders
+        self.source = None
+        self.destination = None
+        self.load_last_used_folders()
+
+    # Methods to handle folder persistence
+    def save_last_used_folders(self) -> None:
+        """Save the current source and destination folders to text files"""
+        try:
+            # Save source folder
+            source_file = basedir / "assets" / "LastUsedSource.txt"
+            with open(source_file, 'w', encoding='utf-8') as f:
+                f.write(self.lineEditSource.text())
+            
+            # Save destination folder
+            dest_file = basedir / "assets" / "LastUseddestination.txt"
+            with open(dest_file, 'w', encoding='utf-8') as f:
+                f.write(self.lineEditDestination.text())
+                
+        except Exception as e:
+            print(f"Failed to save last used folders: {e}")
+
+    def load_last_used_folders(self) -> None:
+        """Load the last used source and destination folders from text files"""
+        try:
+            # Load source folder
+            source_file = basedir / "assets" / "LastUsedSource.txt"
+            if source_file.exists():
+                with open(source_file, 'r', encoding='utf-8') as f:
+                    last_source = f.read().strip()
+                    self.source = last_source
+            
+            # Load destination folder
+            dest_file = basedir / "assets" / "LastUseddestination.txt"
+            if dest_file.exists():
+                with open(dest_file, 'r', encoding='utf-8') as f:
+                    last_dest = f.read().strip()
+                    if last_dest and Path(last_dest).exists():
+                        self.destination = last_dest
+
+        except Exception as e:
+            print(f"Failed to load last used folders: {e}")
+
     # Methods to handle directory browsing
     def browse_source(self) -> None:
         """
         Opens a file dialog to select a source folder and updates the source line edit.
-
-
-        The dialog is set to read-only mode to prevent accidental modifications.
+        Uses the last used source folder as the starting directory.
         """
-        options = QtWidgets.QFileDialog.Option.ReadOnly
+        options = (
+            QtWidgets.QFileDialog.Option.ReadOnly
+            | QtWidgets.QFileDialog.Option.ShowDirsOnly
+        )
 
         folder = QtWidgets.QFileDialog.getExistingDirectory(
-            parent=self, caption="Select Source Folder", options=options
+            parent=self, 
+            caption="Select Source Folder", 
+            directory=self.source,
+            options=options
         )
 
         if folder:
@@ -120,13 +167,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def browse_destination(self) -> None:
         """
         Opens a file dialog to select a destination folder and updates the destination line edit.
-
-        The dialog is set to read-only mode to prevent accidental modifications.
+        Uses the last used destination folder as the starting directory.
         """
-        options = QtWidgets.QFileDialog.Option.ReadOnly
+        options = (
+            QtWidgets.QFileDialog.Option.ReadOnly
+            | QtWidgets.QFileDialog.Option.ShowDirsOnly
+        )
 
         folder = QtWidgets.QFileDialog.getExistingDirectory(
-            parent=self, caption="Select Destination Folder", options=options
+            parent=self, 
+            caption="Select Destination Folder", 
+            directory=self.destination,
+            options=options
         )
 
         if folder:
@@ -164,7 +216,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             )
             return
 
-        # Validate source and destination folders
+        # Validate and store source and destination folders
         if not Path(self.lineEditSource.text()).is_dir():
             QtWidgets.QMessageBox.warning(
                 self, "Input Error", "Source folder is not valid."
@@ -176,6 +228,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self, "Input Error", "Destination folder is not valid."
             )
             return
+        
+        self.save_last_used_folders()
 
         # Start the photo organizing process in a separate thread
         self.photo_organizer = PhotoOrganizer()
@@ -225,7 +279,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         for line in summary_lines:
             self.progress_window.update_logs(line)
 
-        # TODO: Change color of progress bar to green while replicating Windows 11 style
+        # Change color of progress bar to green when finished
+        self.progress_window.set_progress_style("green")
 
 
 class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
@@ -249,11 +304,27 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         # Hide timelabel until function is implemented
         self.labelTime.hide()
 
+    def set_progress_style(self, color: str):
+        """Apply stylesheet with given chunk color."""
+        self.progressBar.setStyleSheet(f"""
+            QProgressBar {{
+                border: none;
+                background: #dcdcdc;
+                border-radius: 4px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {color};
+                border-radius: 4px;
+            }}
+        """)
+
     def update_progress(self, current: int, total: int, failed: int) -> None:
         """Update the progress bar and labels"""
 
         percentage = int((current + failed) / total * 100) if total > 0 else 0
-        self.progressBar.setValue(percentage)
+        self.progressBar.setValue(percentage)        
+        # Update percentage label
+        self.labelPercentage.setText(f"{percentage}%")
 
         self.labelSorted.setText(f"✅ Sorted: {current}")
         remaining = max(total - current - failed, 0)

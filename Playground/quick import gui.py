@@ -4,6 +4,6 @@ import sys
 app = QtWidgets.QApplication(sys.argv)
 # app.setStyle("Fusion")  # optional: unify with Designer look
 
-window = uic.loadUi("PhotoOrganizer_v3/progressWindow.ui")
+window = uic.loadUi("src/assets/progressWindow - kopie.ui")
 window.show()
 app.exec()

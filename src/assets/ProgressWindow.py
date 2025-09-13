@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'PhotoOrganizer_v3\ProgressWindow.ui'
+# Form implementation generated from reading ui file 'src\assets\ProgressWindow.ui'
 #
 # Created by: PyQt6 UI code generator 6.9.1
 #
@@ -16,14 +16,33 @@ class Ui_ProgressWindow(object):
         ProgressWindow.setMinimumSize(QtCore.QSize(500, 300))
         self.verticalLayout = QtWidgets.QVBoxLayout(ProgressWindow)
         self.verticalLayout.setObjectName("verticalLayout")
+        self.progressLayout = QtWidgets.QHBoxLayout()
+        self.progressLayout.setObjectName("progressLayout")
         self.progressBar = QtWidgets.QProgressBar(parent=ProgressWindow)
         self.progressBar.setMinimum(0)
         self.progressBar.setMaximum(100)
         self.progressBar.setProperty("value", 0)
-        self.progressBar.setTextVisible(True)
-        self.progressBar.setInvertedAppearance(False)
+        self.progressBar.setMinimumSize(QtCore.QSize(0, 8))
+        self.progressBar.setMaximumSize(QtCore.QSize(16777215, 8))
+        self.progressBar.setTextVisible(False)
+        self.progressBar.setStyleSheet("QProgressBar {\n"
+"    border: none;\n"
+"    background: #dcdcdc;\n"
+"    border-radius: 4px;\n"
+"}\n"
+"QProgressBar::chunk {\n"
+"    background-color: #0078d7;\n"
+"    border-radius: 4px;\n"
+"}")
         self.progressBar.setObjectName("progressBar")
-        self.verticalLayout.addWidget(self.progressBar)
+        self.progressLayout.addWidget(self.progressBar)
+        self.labelPercentage = QtWidgets.QLabel(parent=ProgressWindow)
+        self.labelPercentage.setMinimumSize(QtCore.QSize(40, 0))
+        self.labelPercentage.setMaximumSize(QtCore.QSize(40, 16777215))
+        self.labelPercentage.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight|QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.labelPercentage.setObjectName("labelPercentage")
+        self.progressLayout.addWidget(self.labelPercentage)
+        self.verticalLayout.addLayout(self.progressLayout)
         self.statsLayout = QtWidgets.QHBoxLayout()
         self.statsLayout.setObjectName("statsLayout")
         self.labelRemaining = QtWidgets.QLabel(parent=ProgressWindow)
@@ -66,7 +85,7 @@ class Ui_ProgressWindow(object):
     def retranslateUi(self, ProgressWindow):
         _translate = QtCore.QCoreApplication.translate
         ProgressWindow.setWindowTitle(_translate("ProgressWindow", "Sorting Progress"))
-        self.progressBar.setFormat(_translate("ProgressWindow", "%p %"))
+        self.labelPercentage.setText(_translate("ProgressWindow", "0%"))
         self.labelRemaining.setText(_translate("ProgressWindow", "🔄️ Remaining: 0"))
         self.labelSorted.setText(_translate("ProgressWindow", "   ✅ Sorted: 0"))
         self.labelFailed.setText(_translate("ProgressWindow", "   ❌ Failed: 0"))

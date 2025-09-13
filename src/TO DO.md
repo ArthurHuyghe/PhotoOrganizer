@@ -13,16 +13,16 @@
 - [x] Update README.md
 - [x] test file types
 - [x] Prevent error file movement to different drive
+- [x] Remember last used paths
+- [x] Change color of progress bar when finished
 
 
 
 # To Do for .1 release
 
-- [ ] Remember last used paths
 - [ ] Implement keyboard shortcuts
 - [ ] Implement drag and drop functionality
 - [ ] Prevent closing of application during processing?
-- [ ] Change color of progress bar when finished
 - [ ] Implement speed optimizations (see chat)
 - [ ] Add time taken calculation
 - [ ] Handle duplicate files? (counter + list)
