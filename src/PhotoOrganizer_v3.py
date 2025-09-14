@@ -353,14 +353,6 @@ class PhotoOrganizer:
         if progress_callback:
             progress_callback(self.processed_files, self.total_files, self.failed_count)
 
-        if not files_to_process:
-            if log_callback:
-                log_callback(" • No files found to process.")
-            return
-
-        # Create destination path if it doesn't exist
-        file_new_path = Path(destination_folder)
-
         # start processing files
         if log_callback:
             # Log a clear summary of the task at the start
@@ -377,6 +369,11 @@ class PhotoOrganizer:
             ]
             for line in summary_lines:
                 log_callback(line)
+
+        if not files_to_process:
+            if log_callback:
+                log_callback(" • No files found to process.")
+            return
 
         # Process each file
         for file in files_to_process:
@@ -488,6 +485,7 @@ class PhotoOrganizer:
                 "",
                 f" • Total files processed : {self.processed_files}",
                 f" • Total files failed    : {self.failed_count}",
+                ""
             ]
 
             if self.failed_files:
@@ -508,7 +506,7 @@ class PhotoOrganizer:
         # After processing all files, remove empty folders if requested
         if remove_empty:
             if log_callback:
-                summary_lines = ["🧹 Cleanup — Removing empty folders:", "-" * 50, ""]
+                summary_lines = ["🧹 Cleanup — Removing empty folders:", ""]
                 for line in summary_lines:
                     log_callback(line)
 

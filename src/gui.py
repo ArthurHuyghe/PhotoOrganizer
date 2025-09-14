@@ -1,6 +1,6 @@
 # PhotoOrganizer_v3/gui.py
 # This script creates a simple GUI for the Photo Organizer application using PyQt6.
-import sys, os
+import sys
 from pathlib import Path
 from PyQt6 import QtWidgets, QtCore
 from PyQt6 import QtGui
@@ -105,20 +105,94 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.destination = None
         self.load_last_used_folders()
 
+        # Setup keyboard shortcuts
+        self._init_shortcuts()
+        # Predefine attributes that will be assigned later by start_sorting()
+        self.photo_organizer = None
+        self.worker = None
+        self.progress_window = None
+
+    def _init_shortcuts(self):
+        """Initialize application-wide keyboard shortcuts.
+
+        Shortcuts:
+        - Alt+S : Select Source Folder
+        - Alt+D : Select Destination Folder
+        - Alt+Enter : Start Sorting
+        - Alt+1 : Toggle 'Sort by Day'
+        - Alt+2 : Toggle 'Remove Empty Folders'
+        - Alt+Q : Quit Application
+        """
+        # Source folder shortcut
+        self.shortcut_source = QtGui.QShortcut(QtGui.QKeySequence("Alt+S"), self)
+        self.shortcut_source.activated.connect(self.browse_source)
+
+        # Destination folder shortcut
+        self.shortcut_destination = QtGui.QShortcut(QtGui.QKeySequence("Alt+D"), self)
+        self.shortcut_destination.activated.connect(self.browse_destination)
+
+        # Start sorting shortcut (register both textual variants for portability)
+        self.shortcut_start_sorting = QtGui.QShortcut(
+            QtGui.QKeySequence("Alt+Return"), self
+        )
+        self.shortcut_start_sorting.setContext(
+            QtCore.Qt.ShortcutContext.ApplicationShortcut
+        )
+        self.shortcut_start_sorting.activated.connect(self.start_sorting)
+
+        self.shortcut_start_sorting_alt_text = QtGui.QShortcut(
+            QtGui.QKeySequence("Alt+Enter"), self
+        )
+        self.shortcut_start_sorting_alt_text.setContext(
+            QtCore.Qt.ShortcutContext.ApplicationShortcut
+        )
+        self.shortcut_start_sorting_alt_text.activated.connect(self.start_sorting)
+
+        # Checkbox toggles
+        self.shortcut_toggle_sort_by_day = QtGui.QShortcut(
+            QtGui.QKeySequence("Alt+1"), self
+        )
+        self.shortcut_toggle_sort_by_day.activated.connect(self.toggle_sort_by_day)
+
+        self.shortcut_toggle_remove_empty = QtGui.QShortcut(
+            QtGui.QKeySequence("Alt+2"), self
+        )
+        self.shortcut_toggle_remove_empty.activated.connect(self.toggle_remove_empty)
+
+        # Quit application shortcut (common desktop convention)
+        self.shortcut_quit = QtGui.QShortcut(QtGui.QKeySequence("Alt+Q"), self)
+        self.shortcut_quit.setContext(QtCore.Qt.ShortcutContext.ApplicationShortcut)
+        self.shortcut_quit.activated.connect(self.close)
+
+        # Reflect shortcuts in button tooltips
+        self.btnBrowseSource.setToolTip("Select Source Folder (Alt+S)")
+        self.btnBrowseDestination.setToolTip("Select Destination Folder (Alt+D)")
+        self.btnStartSorting.setToolTip("Start Sorting (Alt+Enter)")
+        self.checkBoxSortByDay.setToolTip("Toggle Sort by Day (Alt+1)")
+        self.checkBoxRemoveEmpty.setToolTip("Toggle Remove Empty Folders (Alt+2)")
+
+    def toggle_sort_by_day(self):
+        """Invert the 'Sort by Day' checkbox state."""
+        self.checkBoxSortByDay.setChecked(not self.checkBoxSortByDay.isChecked())
+
+    def toggle_remove_empty(self):
+        """Invert the 'Remove Empty Folders' checkbox state."""
+        self.checkBoxRemoveEmpty.setChecked(not self.checkBoxRemoveEmpty.isChecked())
+
     # Methods to handle folder persistence
     def save_last_used_folders(self) -> None:
         """Save the current source and destination folders to text files"""
         try:
             # Save source folder
             source_file = basedir / "assets" / "LastUsedSource.txt"
-            with open(source_file, 'w', encoding='utf-8') as f:
+            with open(source_file, "w", encoding="utf-8") as f:
                 f.write(self.lineEditSource.text())
-            
+
             # Save destination folder
             dest_file = basedir / "assets" / "LastUseddestination.txt"
-            with open(dest_file, 'w', encoding='utf-8') as f:
+            with open(dest_file, "w", encoding="utf-8") as f:
                 f.write(self.lineEditDestination.text())
-                
+
         except Exception as e:
             print(f"Failed to save last used folders: {e}")
 
@@ -128,14 +202,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             # Load source folder
             source_file = basedir / "assets" / "LastUsedSource.txt"
             if source_file.exists():
-                with open(source_file, 'r', encoding='utf-8') as f:
+                with open(source_file, "r", encoding="utf-8") as f:
                     last_source = f.read().strip()
                     self.source = last_source
-            
+
             # Load destination folder
             dest_file = basedir / "assets" / "LastUseddestination.txt"
             if dest_file.exists():
-                with open(dest_file, 'r', encoding='utf-8') as f:
+                with open(dest_file, "r", encoding="utf-8") as f:
                     last_dest = f.read().strip()
                     if last_dest and Path(last_dest).exists():
                         self.destination = last_dest
@@ -155,10 +229,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         )
 
         folder = QtWidgets.QFileDialog.getExistingDirectory(
-            parent=self, 
-            caption="Select Source Folder", 
+            parent=self,
+            caption="Select Source Folder",
             directory=self.source,
-            options=options
+            options=options,
         )
 
         if folder:
@@ -175,24 +249,24 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         )
 
         folder = QtWidgets.QFileDialog.getExistingDirectory(
-            parent=self, 
-            caption="Select Destination Folder", 
+            parent=self,
+            caption="Select Destination Folder",
             directory=self.destination,
-            options=options
+            options=options,
         )
 
         if folder:
             self.lineEditDestination.setText(folder)
 
     # Methods to handle checkboxes state change
-    def sort_by_day(self, checked: int) -> None:
+    def sort_by_day(self, _checked: int) -> None:
         """
         Handles the state change of the 'Sort By Day' checkbox.
         """
         self.sort_by_day_enabled = self.checkBoxSortByDay.isChecked()
         print(f"Sort by day enabled: {self.sort_by_day_enabled}")
 
-    def remove_empty_folders(self, checked: int) -> None:
+    def remove_empty_folders(self, _checked: int) -> None:
         """
         Handles the state change of the 'Remove Empty Folders' checkbox.
         """
@@ -228,7 +302,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self, "Input Error", "Destination folder is not valid."
             )
             return
-        
+
         self.save_last_used_folders()
 
         # Start the photo organizing process in a separate thread
@@ -288,6 +362,7 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         super().__init__(parent)
         self.setupUi(self)
         self.worker = worker
+        self.processing_done = False  # True once worker signals completion
 
         # Ensure this is a top-level dialog (not a SubWindow embedded in the main window)
         self.setWindowFlags(QtCore.Qt.WindowType.Dialog | QtCore.Qt.WindowType.Window)
@@ -303,6 +378,15 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
 
         # Hide timelabel until function is implemented
         self.labelTime.hide()
+
+        # Alt+Q (Quit) inside progress dialog ONLY after finished
+        self.shortcut_quit = QtGui.QShortcut(QtGui.QKeySequence("Alt+Q"), self)
+        self.shortcut_quit.setContext(QtCore.Qt.ShortcutContext.ApplicationShortcut)
+        self.shortcut_quit.activated.connect(self._attempt_quit)
+        self.shortcut_quit.setEnabled(False)  # Enable after finish
+
+        # Track finish state from worker
+        self.worker.finished.connect(self._mark_finished)
 
     def set_progress_style(self, color: str):
         """Apply stylesheet with given chunk color."""
@@ -322,7 +406,7 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         """Update the progress bar and labels"""
 
         percentage = int((current + failed) / total * 100) if total > 0 else 0
-        self.progressBar.setValue(percentage)        
+        self.progressBar.setValue(percentage)
         # Update percentage label
         self.labelPercentage.setText(f"{percentage}%")
 
@@ -349,6 +433,19 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         )
         confirmed = response == QtWidgets.QMessageBox.StandardButton.Yes
         self.worker.handle_confirmation_response(confirmed)
+
+    # --- Internal helpers for finish state & quitting ---
+    def _mark_finished(self):
+        """Enable quit shortcut once processing is finished."""
+        self.processing_done = True
+        self.shortcut_quit.setEnabled(True)
+
+    def _attempt_quit(self):
+        """Quit application if sorting finished; ignore otherwise."""
+        if not self.processing_done:
+            # Optionally could flash or show a brief message; silently ignore for now.
+            return
+        QtWidgets.QApplication.instance().quit()
 
 
 if __name__ == "__main__":

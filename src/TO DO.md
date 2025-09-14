@@ -15,13 +15,14 @@
 - [x] Prevent error file movement to different drive
 - [x] Remember last used paths
 - [x] Change color of progress bar when finished
+- [x] Implement keyboard shortcuts
+- [x] fix styling issues in text output
+- [ ] Implement drag and drop functionality
 
 
 
 # To Do for .1 release
 
-- [ ] Implement keyboard shortcuts
-- [ ] Implement drag and drop functionality
 - [ ] Prevent closing of application during processing?
 - [ ] Implement speed optimizations (see chat)
 - [ ] Add time taken calculation
