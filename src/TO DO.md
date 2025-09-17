@@ -17,13 +17,14 @@
 - [x] Change color of progress bar when finished
 - [x] Implement keyboard shortcuts
 - [x] fix styling issues in text output
-- [ ] Implement drag and drop functionality
+- [x] Update supported formats
+- [ ] Implement speed optimizations 
 
 
 
 # To Do for .1 release
 
 - [ ] Prevent closing of application during processing?
-- [ ] Implement speed optimizations (see chat)
+- [ ] Implement drag and drop functionality
 - [ ] Add time taken calculation
 - [ ] Handle duplicate files? (counter + list)

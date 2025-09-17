@@ -1,6 +1,7 @@
 # PhotoOrganizer_v3/gui.py
 # This script creates a simple GUI for the Photo Organizer application using PyQt6.
 import sys
+import logging
 from pathlib import Path
 from PyQt6 import QtWidgets, QtCore
 from PyQt6 import QtGui
@@ -8,6 +9,8 @@ from PyQt6 import QtGui
 from assets.MainWindow import Ui_MainWindow
 from assets.ProgressWindow import Ui_ProgressWindow
 from PhotoOrganizer_v3 import PhotoOrganizer
+
+logging.basicConfig(level=logging.INFO)
 
 # get base directory for reference to resource files
 basedir = Path(__file__).parent
@@ -18,7 +21,7 @@ try:
     myappid = "Huyghe.Arthur.PhotoOrganizer.3.0"
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
-    print("Failed to set application ID.")
+    logging.warning("Failed to set application ID.")
     pass
 
 
@@ -194,7 +197,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write(self.lineEditDestination.text())
 
         except Exception as e:
-            print(f"Failed to save last used folders: {e}")
+            logging.warning(f"Failed to save last used folders: {e}")
 
     def load_last_used_folders(self) -> None:
         """Load the last used source and destination folders from text files"""
@@ -215,7 +218,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                         self.destination = last_dest
 
         except Exception as e:
-            print(f"Failed to load last used folders: {e}")
+            logging.warning(f"Failed to load last used folders: {e}")
 
     # Methods to handle directory browsing
     def browse_source(self) -> None:
@@ -264,14 +267,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         Handles the state change of the 'Sort By Day' checkbox.
         """
         self.sort_by_day_enabled = self.checkBoxSortByDay.isChecked()
-        print(f"Sort by day enabled: {self.sort_by_day_enabled}")
+        logging.info(f"Sort by day enabled: {self.sort_by_day_enabled}")
 
     def remove_empty_folders(self, _checked: int) -> None:
         """
         Handles the state change of the 'Remove Empty Folders' checkbox.
         """
         self.remove_empty_folders_enabled = self.checkBoxRemoveEmpty.isChecked()
-        print(f"Remove empty folders enabled: {self.remove_empty_folders_enabled}")
+        logging.info(f"Remove empty folders enabled: {self.remove_empty_folders_enabled}")
 
     # Method to start sorting process
     def start_sorting(self) -> None:

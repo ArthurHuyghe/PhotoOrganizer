@@ -23,7 +23,7 @@ register_heif_opener(thumbnails=False)
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
@@ -47,6 +47,32 @@ class PhotoOrganizer:
     Provides methods to sort files, move them to destination folders, and optionally remove empty directories.
     """
 
+    # Class-level extension definitions (single source of truth)
+    IMAGE_EXTENSIONS = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".tiff",
+        ".tif",
+        ".webp",
+        ".heic",
+        ".heif",
+        ".cr2",
+        ".arw",
+        ".dng",
+        ".avif",
+    }
+
+    VIDEO_EXTENSIONS = {
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".mkv",
+    }
+
+    # Combined set of all supported file extensions
+    SUPPORTED_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
+
     def __init__(self):
         """Initialize the PhotoOrganizer with default values."""
         self.total_files: int = 0
@@ -69,28 +95,8 @@ class PhotoOrganizer:
         if file.name in excluded_files:
             return False
 
-        # Check file extension against supported formats
-        supported_extensions = {
-            # Image formats
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".tiff",
-            ".webp",
-            ".heic",
-            ".heif",
-            ".raw",
-            ".cr2",
-            ".nef",
-            ".avif",
-            # Video formats
-            ".mp4",
-            ".avi",
-            ".mov",
-            ".mkv",
-        }
-
-        if file.suffix.lower() not in supported_extensions:
+        # Check file extension against supported formats (class-level)
+        if file.suffix.lower() not in self.SUPPORTED_EXTENSIONS:
             return False
 
         # Skip empty files
@@ -108,49 +114,53 @@ class PhotoOrganizer:
             Optional[date]: The date extracted from the file's metadata, or None if no date could be found
         """
         # image handling
-        if file.suffix.lower() in {
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".tiff",
-            ".webp",
-            ".heic",
-            ".heif",
-            ".raw",
-            ".cr2",
-            ".nef",
-            ".avif",
-        }:    
+        ext = file.suffix.lower()
+        if ext in self.IMAGE_EXTENSIONS:
             try:
                 image = Image.open(file)
                 exif_data = image.getexif()
                 if exif_data:
                     # Debugging: Log all EXIF tags
-                    debug_exif_tags(exif_data)
+                    if logging.getLogger().isEnabledFor(logging.DEBUG):
+                        debug_exif_tags(exif_data)
+
                     sub_ifd = exif_data.get_ifd(0x8769)  # EXIF Sub-IFD
                     if sub_ifd:
                         # Debugging: Log all EXIF Sub-IFD tags
-                        # debug_exif_tags(sub_ifd)
+                        if logging.getLogger().isEnabledFor(logging.DEBUG):
+                            debug_exif_tags(sub_ifd)
+
                         if 36867 in sub_ifd:
                             # DateTimeOriginal tag
-                            logging.info("Found DateTimeOriginal in EXIF Sub-IFD: %s", sub_ifd[36867])
+                            logging.info(
+                                "Found DateTimeOriginal in EXIF Sub-IFD: %s",
+                                sub_ifd[36867],
+                            )
                             try:
                                 return datetime.strptime(
                                     sub_ifd[36867], "%Y:%m:%d %H:%M:%S"
                                 ).date()
                             except ValueError:
-                                logging.warning("Invalid date format in EXIF Sub-IFD: %s", sub_ifd[36867])
+                                logging.warning(
+                                    "Invalid date format in EXIF Sub-IFD: %s",
+                                    sub_ifd[36867],
+                                )
                         else:
                             logging.info("DateTimeOriginal not found.")
                             if 306 in exif_data:
                                 # DateTime tag
-                                logging.info("Found DateTime in EXIF: %s", exif_data[306])
+                                logging.info(
+                                    "Found DateTime in EXIF: %s", exif_data[306]
+                                )
                                 try:
                                     return datetime.strptime(
                                         exif_data[306], "%Y:%m:%d %H:%M:%S"
                                     ).date()
                                 except ValueError:
-                                    logging.warning("Invalid date format in EXIF: %s", exif_data[306])
+                                    logging.warning(
+                                        "Invalid date format in EXIF: %s",
+                                        exif_data[306],
+                                    )
                     else:
                         logging.info("No EXIF Sub-IFD found in image: %s", file.name)
                         if 306 in exif_data:
@@ -161,7 +171,9 @@ class PhotoOrganizer:
                                     exif_data[306], "%Y:%m:%d %H:%M:%S"
                                 ).date()
                             except ValueError:
-                                logging.warning("Invalid date format in EXIF: %s", exif_data[306])
+                                logging.warning(
+                                    "Invalid date format in EXIF: %s", exif_data[306]
+                                )
                 else:
                     logging.info("No EXIF data found in image: %s", file.name)
 
@@ -169,7 +181,7 @@ class PhotoOrganizer:
                 logging.warning("Error reading image metadata from %s: %s", file, e)
 
         # video handling
-        elif file.suffix.lower() in {".mp4", ".avi", ".mov", ".mkv"}:
+        elif ext in self.VIDEO_EXTENSIONS:
             try:
                 video_info = MediaInfo.parse(file)
                 for track in video_info.tracks:
@@ -485,7 +497,7 @@ class PhotoOrganizer:
                 "",
                 f" • Total files processed : {self.processed_files}",
                 f" • Total files failed    : {self.failed_count}",
-                ""
+                "",
             ]
 
             if self.failed_files:

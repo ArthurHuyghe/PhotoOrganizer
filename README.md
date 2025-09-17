@@ -8,12 +8,11 @@ A Python application that automatically organizes your photos and videos into da
 
 - **📂 Intelligent Date Detection**: Extracts creation dates from EXIF data (photos) and metadata (videos)
 - **🎯 Multiple File Format Support**: 
-  - **Images**: All common EXIF-compatible formats including HEIC/HEIF
+  - **Images**: JPG, JPEG, PNG, TIFF, WebP, HEIC, HEIF, CR2, ARW, DNG, AVIF
   - **Videos**: MP4, AVI, MOV, MKV
 - **📅 Flexible Organization**: Sort by month (YYYY/MM) or day (YYYY/MM/DD)
 - **🧹 Smart Cleanup**: Optional removal of empty folders after processing
 - **🖥️ Modern GUI**: Intuitive PyQt6 interface with real-time progress tracking
-- **📊 Detailed Logging**: Comprehensive progress reports and error handling
 - **🔒 Safe Processing**: Confirmation dialogs for file removal operations
 
 ## 🚀 Quick Start
@@ -77,6 +76,30 @@ Destination Folder/
 - **[`assets/MainWindow.py`](assets/MainWindow.py)**: Main window UI components
 - **[`assets/ProgressWindow.py`](assets/ProgressWindow.py)**: Progress tracking dialog
 
+## ⚠️ Important Notes
+
+- **Backup Your Files**: Always maintain backups before processing large photo collections
+- **File Safety**: Existing files with identical names are skipped (not overwritten)
+- **Hidden Files**: System and hidden files (Thumbs.db, desktop.ini, files starting with "." or "~$") are automatically excluded
+
+## 📋 Supported Metadata Sources
+
+### Images
+- **Primary**: `DateTimeOriginal` (EXIF tag 36867 in Sub-IFD)
+- **Fallback**: `DateTime` (EXIF tag 306)
+- **Formats**: JPG, JPEG, PNG, TIFF, TIF, WebP, HEIC, HEIF, CR2, ARW, DNG, AVIF
+
+### Videos
+- **Primary**: `recorded_date`
+- **Fallback**: `encoded_date`, `tagged_date`, `file_last_modification_date`
+- **Formats**: MP4, AVI, MOV, MKV (using PyMediaInfo for metadata extraction)
+
+## 🔄 Version History
+
+- **v3.0** (Current): Complete Python rewrite with PyQt6 GUI
+- **v2.0**: PowerShell implementation (archived)
+- **v1.0**: Initial prototype (archived)
+
 ## 🔧 Development
 
 ### Project Structure
@@ -106,30 +129,6 @@ PhotoOrganizer/
    ```bash
    pyinstaller gui.py.spec
    ```
-
-## ⚠️ Important Notes
-
-- **Backup Your Files**: Always maintain backups before processing large photo collections
-- **File Safety**: Existing files with identical names are skipped (not overwritten)
-- **Hidden Files**: System and hidden files (Thumbs.db, desktop.ini, files starting with "." or "~$") are automatically excluded
-
-## 📋 Supported Metadata Sources
-
-### Images
-- **Primary**: `DateTimeOriginal` (EXIF tag 36867 in Sub-IFD)
-- **Fallback**: `DateTime` (EXIF tag 306)
-- **Formats**: JPG, JPEG, PNG, TIFF, WebP, HEIC, HEIF, RAW, CR2, NEF, AVIF
-
-### Videos
-- **Primary**: `recorded_date`
-- **Fallback**: `encoded_date`, `tagged_date`, `file_last_modification_date`
-- **Formats**: MP4, AVI, MOV, MKV (using PyMediaInfo for metadata extraction)
-
-## 🔄 Version History
-
-- **v3.0** (Current): Complete Python rewrite with PyQt6 GUI
-- **v2.0**: PowerShell implementation (archived)
-- **v1.0**: Initial prototype (archived)
 
 ## 🤝 Contributing
 
