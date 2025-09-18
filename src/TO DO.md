@@ -19,7 +19,9 @@
 - [x] fix styling issues in text output
 - [x] Update supported formats
 - [x] Prevent closing of application during processing
-- [x] Add time taken calculation
+- [x] Add time remaining calculation
+- [x] Ensure program is updatable
+- [x] Change precision of average time per file
 
 
 

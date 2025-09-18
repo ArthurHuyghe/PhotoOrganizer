@@ -506,13 +506,24 @@ class PhotoOrganizer:
             # Show a summary of the finished task
             # Convert total time to reasonable units
             if total_time < 1:
-                time_str = f"{total_time * 1000:.2f} ms"
+                total_time_str = f"{total_time * 1000:.2f} ms"
             elif total_time < 60:
-                time_str = f"{total_time:.2f} seconds"
+                total_time_str = f"{total_time:.2f} seconds"
             elif total_time < 3600:
-                time_str = f"{total_time / 60:.2f} minutes"
+                total_time_str = f"{total_time / 60:.2f} minutes"
             else:
-                time_str = f"{total_time / 3600:.2f} hours"
+                total_time_str = f"{total_time / 3600:.2f} hours"
+            
+            average_time = total_time / self.total_files if self.total_files > 0 else 0
+                
+            if average_time < 1:
+                average_time_str = f"{average_time * 1000:.2f} ms"
+            elif average_time < 60:
+                average_time_str = f"{average_time:.2f} seconds"
+            elif average_time < 3600:
+                average_time_str = f"{average_time / 60:.2f} minutes"
+            else:
+                average_time_str = f"{average_time / 3600:.2f} hours"
             # Construct summary
             summary_lines = [
                 "",
@@ -521,8 +532,8 @@ class PhotoOrganizer:
                 "",
                 f" • Total files processed : {self.processed_files}",
                 f" • Total files failed    : {self.failed_count}",
-                f" • Processing time       : {time_str}",
-                f" • Average per file      : {total_time / self.total_files:.3f} seconds"
+                f" • Processing time       : {total_time_str}",
+                f" • Average per file      : {average_time_str}"
                 if self.total_files > 0
                 else "",
                 "",
