@@ -1,3 +1,27 @@
-/.vs
-/.vscode
+# IDEs and Editors
+.vs/
+.vscode/
+*.autosave
+.github/copilot-instructions.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Build and Distribution
+build/
+dist/
+
+# Project Specific
+src/assets/LastUseddestination.txt
+src/assets/LastUsedSource.txt
 PhotoOrganizer_v2.exe
+Playground/
+tests/
+
+# Legacy/Archive
+archive/bad prototypes/
+
+

@@ -1,0 +1,17 @@
+﻿<Window x:Class="MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfApp5"
+        mc:Ignorable="d"
+        Title="PhotoOrganizer - aan het sorteren..." Height="455" Width="551" WindowStartupLocation="CenterScreen" Cursor="AppStarting" ResizeMode="NoResize">
+    <Grid>
+        <ProgressBar Name="Progressbar" HorizontalAlignment="Left" Height="15" VerticalAlignment="Top" Width="400" Margin="20,44,0,0" Maximum="100" Value="0"/>
+        <TextBlock Name="task_preforming" HorizontalAlignment="Left" Margin="19,0,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="200" FontSize="16" Text="Aan het sorteren..."/>
+        <TextBlock Name="txt_progress" HorizontalAlignment="Left" Margin="19,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" FontSize="12" Text=""/>
+        <TextBlock Name="error" HorizontalAlignment="Left" Margin="250,0,0,0" TextWrapping="Wrap" VerticalAlignment="Top" FontSize="12" Text="*Het sorteren is nogsteeds bezig..." Foreground="#FFEA0909" Visibility="Hidden"/>
+        <TextBox Name="Progress_output" HorizontalAlignment="Center" Margin="0,87,0,0" Text="" VerticalAlignment="Top" Width="495" Height="310" AcceptsReturn="True" AutoWordSelection="True" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Background="WhiteSmoke"/>
+        <Separator HorizontalAlignment="Center" Margin="0,64,0,0" VerticalAlignment="Top" Height="18" Width="495"/>
+    </Grid>
+</Window>
