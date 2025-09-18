@@ -580,8 +580,11 @@ class PhotoOrganizer:
 if __name__ == "__main__":
     organizer = PhotoOrganizer()
 
-    source = r"C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\tests\resources"
-    dest = r"C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\tests\result"
+    # Use relative paths based on the repository structure
+    script_dir = Path(__file__).parent
+    repo_root = script_dir.parent  # Go up one level from src/ to repo root
+    source = repo_root / "tests" / "resources"
+    dest = repo_root / "tests" / "result"
 
     logging.info("Processing files from: %s", source)
     logging.info("Destination folder: %s", dest)

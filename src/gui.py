@@ -207,7 +207,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             if source_file.exists():
                 with open(source_file, "r", encoding="utf-8") as f:
                     last_source = f.read().strip()
-                    self.source = last_source
+                    if last_source and Path(last_source).exists():
+                        self.source = last_source
 
             # Load destination folder
             dest_file = basedir / "assets" / "LastUsedDestination.txt"

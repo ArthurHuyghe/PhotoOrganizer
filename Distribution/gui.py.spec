@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import PyInstaller.config
+import os
 
 # Base path configuration
 BASE_PATH = "C:\\Users\\Arthu\\Documents\\GitHub\\PhotoOrganizer"
