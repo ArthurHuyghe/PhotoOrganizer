@@ -90,7 +90,7 @@ QProgressBar::chunk {
      <item>
       <widget class="QLabel" name="labelRemaining">
        <property name="text">
-        <string>🔄️ Remaining: 0</string>
+        <string>🔄️ Remaining: -</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
@@ -127,7 +127,7 @@ QProgressBar::chunk {
      <item>
       <widget class="QLabel" name="labelTime">
        <property name="text">
-        <string>⌛Time remaining: </string>
+        <string>⌛Time remaining: -</string>
        </property>
       </widget>
      </item>

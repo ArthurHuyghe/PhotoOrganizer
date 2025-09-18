@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'PhotoOrganizer_v3\mainWindow.ui'
+# Form implementation generated from reading ui file 'assets/MainWindow.ui'
 #
 # Created by: PyQt6 UI code generator 6.9.1
 #
@@ -76,7 +76,7 @@ class Ui_MainWindow(object):
 "           background-color: #4CAF50;\n"
 "           color: white;\n"
 "           font-weight: bold;\n"
-"           border-radius: 6px;\n"
+"           border-radius: 4px;\n"
 "       }\n"
 "       QPushButton:hover {\n"
 "           background-color: #45A049;\n"

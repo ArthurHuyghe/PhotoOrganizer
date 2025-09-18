@@ -1,6 +1,5 @@
-# This python script should sort photos into folders based on their creation date. If that isn't available, it will use the oldest date in the EXIF data.
-# for videos, it will use the creation date from the file metadata.
-# It launches a GUI from gui.py to select the source folder and the destination folder, and then processes the images accordingly.
+# This python script should sort photos into folders based on their creation date. For videos, it will use the creation date from the file metadata.
+# It launches by a GUI from gui.py to select the source folder and the destination folder, and then processes the images accordingly.
 # The GUI allows the user to select the date format for the folder names and whether it should delete empty folders after processing.
 # It is a port to Python from the powershell script PhotoOrganizer_v2/PhotoOrganizer_v2.ps1
 
@@ -12,6 +11,7 @@ import shutil
 from datetime import datetime, date
 import logging
 import ctypes
+from time import perf_counter
 
 from PIL import Image
 from PIL.ExifTags import TAGS
@@ -79,6 +79,11 @@ class PhotoOrganizer:
         self.processed_files: int = 0
         self.failed_files: list[str] = []
         self.failed_count: int = 0
+        self._debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
+        self.total_processing_time: float = 0.0
+        self.average_time_per_file: float = 0.0
+        self.list_of_processing_times: list[float] = []
+        self.estimated_time_remaining: float = -1
 
     def is_valid_file(self, file: Path) -> bool:
         """Check if file should be processed."""
@@ -99,12 +104,13 @@ class PhotoOrganizer:
         if file.suffix.lower() not in self.SUPPORTED_EXTENSIONS:
             return False
 
-        # Skip empty files
-        try:
-            if file.stat().st_size == 0:
+        # Skip empty files (only check for non-RAW formats to avoid expensive stat calls)
+        if file.suffix.lower() not in {".cr2", ".arw", ".dng"}:
+            try:
+                if file.stat().st_size == 0:
+                    return False
+            except OSError:
                 return False
-        except OSError:
-            return False
 
         return True
 
@@ -117,62 +123,39 @@ class PhotoOrganizer:
         ext = file.suffix.lower()
         if ext in self.IMAGE_EXTENSIONS:
             try:
-                image = Image.open(file)
-                exif_data = image.getexif()
+                # Ensure the file handle is closed promptly for large batches
+                with Image.open(file) as image:
+                    exif_data = image.getexif()
                 if exif_data:
-                    # Debugging: Log all EXIF tags
-                    if logging.getLogger().isEnabledFor(logging.DEBUG):
+                    # Debug EXIF tags only when debug logging is enabled
+                    if self._debug_enabled:
                         debug_exif_tags(exif_data)
 
+                    # Try DateTimeOriginal first (most reliable)
                     sub_ifd = exif_data.get_ifd(0x8769)  # EXIF Sub-IFD
-                    if sub_ifd:
-                        # Debugging: Log all EXIF Sub-IFD tags
-                        if logging.getLogger().isEnabledFor(logging.DEBUG):
+                    if sub_ifd and 36867 in sub_ifd:
+                        if self._debug_enabled:
                             debug_exif_tags(sub_ifd)
-
-                        if 36867 in sub_ifd:
-                            # DateTimeOriginal tag
-                            logging.info(
-                                "Found DateTimeOriginal in EXIF Sub-IFD: %s",
-                                sub_ifd[36867],
+                        try:
+                            return datetime.strptime(
+                                sub_ifd[36867], "%Y:%m:%d %H:%M:%S"
+                            ).date()
+                        except ValueError:
+                            logging.warning(
+                                "Invalid DateTimeOriginal format: %s", sub_ifd[36867]
                             )
-                            try:
-                                return datetime.strptime(
-                                    sub_ifd[36867], "%Y:%m:%d %H:%M:%S"
-                                ).date()
-                            except ValueError:
+
+                    # Fallback to DateTime tag
+                    logging.debug("Falling back to DateTime tag")
+                    if 306 in exif_data:
+                        try:
+                            return datetime.strptime(
+                                exif_data[306], "%Y:%m:%d %H:%M:%S"
+                            ).date()
+                        except ValueError:
+                            if self._debug_enabled:
                                 logging.warning(
-                                    "Invalid date format in EXIF Sub-IFD: %s",
-                                    sub_ifd[36867],
-                                )
-                        else:
-                            logging.info("DateTimeOriginal not found.")
-                            if 306 in exif_data:
-                                # DateTime tag
-                                logging.info(
-                                    "Found DateTime in EXIF: %s", exif_data[306]
-                                )
-                                try:
-                                    return datetime.strptime(
-                                        exif_data[306], "%Y:%m:%d %H:%M:%S"
-                                    ).date()
-                                except ValueError:
-                                    logging.warning(
-                                        "Invalid date format in EXIF: %s",
-                                        exif_data[306],
-                                    )
-                    else:
-                        logging.info("No EXIF Sub-IFD found in image: %s", file.name)
-                        if 306 in exif_data:
-                            # DateTime tag
-                            logging.info("Found DateTime in EXIF: %s", exif_data[306])
-                            try:
-                                return datetime.strptime(
-                                    exif_data[306], "%Y:%m:%d %H:%M:%S"
-                                ).date()
-                            except ValueError:
-                                logging.warning(
-                                    "Invalid date format in EXIF: %s", exif_data[306]
+                                    "Invalid DateTime format: %s", exif_data[306]
                                 )
                 else:
                     logging.info("No EXIF data found in image: %s", file.name)
@@ -327,6 +310,19 @@ class PhotoOrganizer:
                 break  # Exit loop if no empty folders were found
         return counter
 
+    def update_estimate_time_remaining(self) -> None:
+        """Calculate estimated time remaining based on average processing time."""
+        if len(self.list_of_processing_times) < 10:
+            return  # Not enough data to estimate
+        if len(self.list_of_processing_times) > 300:
+            # Keep only the last 300 processing times for a rolling average
+            self.list_of_processing_times = self.list_of_processing_times[-300:]
+        average_time = sum(self.list_of_processing_times) / len(
+            self.list_of_processing_times
+        )
+        files_left = self.total_files - self.processed_files - self.failed_count
+        self.estimated_time_remaining = average_time * files_left
+
     # main function
     def organize_photos(
         self,
@@ -351,9 +347,12 @@ class PhotoOrganizer:
             remove_confirmation_callback: Optional callback for file removal confirmation
         """
 
-        # Get source path
+        # Get source path and start timing
         source_path = Path(source_folder)
+        global_start_time = perf_counter()
 
+        if log_callback:
+            log_callback("🔍 Scanning source folder for files...")
         # Get list of files to process using list comprehension
         files_to_process = [
             file for file in source_path.rglob("*") if self.is_valid_file(file)
@@ -363,19 +362,20 @@ class PhotoOrganizer:
         self.total_files = len(files_to_process)
 
         if progress_callback:
-            progress_callback(self.processed_files, self.total_files, self.failed_count)
+            progress_callback(self.processed_files, self.total_files, self.failed_count, self.estimated_time_remaining)
 
         # start processing files
         if log_callback:
             # Log a clear summary of the task at the start
             summary_lines = [
+                "-" * 50,
                 "📦 Photo Organizer Task Summary",
                 "-" * 50,
                 f"Source folder       : {source_folder}",
                 f"Destination folder  : {destination_folder}",
-                f"Total files found   : {self.total_files}",
                 f"Sort by day         : {'Yes' if sort_by_day else 'No'}",
                 f"Remove empty folders: {'Yes' if remove_empty else 'No'}",
+                f"Total files found   : {self.total_files}",
                 "-" * 50,
                 "",
             ]
@@ -389,6 +389,8 @@ class PhotoOrganizer:
 
         # Process each file
         for file in files_to_process:
+            # Start timing for this file, only used if file is processed
+            file_start_time = perf_counter()
             if log_callback:
                 log_callback(f" • Processing: {file.name}")
 
@@ -410,7 +412,6 @@ class PhotoOrganizer:
                     file_new_path.mkdir(parents=True, exist_ok=True)
 
                     # Generate new file path, handling duplicates
-
                     # TODO: implement counter and list for duplicate files
 
                     new_file_path = file_new_path / file.name
@@ -421,6 +422,7 @@ class PhotoOrganizer:
                                 self.processed_files,
                                 self.total_files,
                                 self.failed_count,
+                                self.estimated_time_remaining,
                             )
                         if log_callback:
                             log_callback(
@@ -442,11 +444,18 @@ class PhotoOrganizer:
                         shutil.move(str(file), str(new_file_path))
                         # Increment processed files count
                         self.processed_files += 1
+                        # Record processing time for this file
+                        file_end_time = perf_counter()
+                        file_processing_time = file_end_time - file_start_time
+                        self.list_of_processing_times.append(file_processing_time)
+                        self.update_estimate_time_remaining()
+                        
                         if progress_callback:
                             progress_callback(
                                 self.processed_files,
                                 self.total_files,
                                 self.failed_count,
+                                self.estimated_time_remaining,
                             )
 
                         if log_callback:
@@ -472,6 +481,7 @@ class PhotoOrganizer:
                             self.processed_files,
                             self.total_files,
                             self.failed_count,
+                            self.estimated_time_remaining,
                         )
 
             except Exception as e:
@@ -485,11 +495,25 @@ class PhotoOrganizer:
                         self.processed_files,
                         self.total_files,
                         self.failed_count,
+                        self.estimated_time_remaining,
                     )
                 continue
 
+        # Calculate processing time
+        total_time = perf_counter() - global_start_time
+
         if log_callback:
             # Show a summary of the finished task
+            # Convert total time to reasonable units
+            if total_time < 1:
+                time_str = f"{total_time * 1000:.2f} ms"
+            elif total_time < 60:
+                time_str = f"{total_time:.2f} seconds"
+            elif total_time < 3600:
+                time_str = f"{total_time / 60:.2f} minutes"
+            else:
+                time_str = f"{total_time / 3600:.2f} hours"
+            # Construct summary
             summary_lines = [
                 "",
                 "-" * 50,
@@ -497,6 +521,10 @@ class PhotoOrganizer:
                 "",
                 f" • Total files processed : {self.processed_files}",
                 f" • Total files failed    : {self.failed_count}",
+                f" • Processing time       : {time_str}",
+                f" • Average per file      : {total_time / self.total_files:.3f} seconds"
+                if self.total_files > 0
+                else "",
                 "",
             ]
 

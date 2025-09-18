@@ -18,13 +18,13 @@
 - [x] Implement keyboard shortcuts
 - [x] fix styling issues in text output
 - [x] Update supported formats
-- [ ] Implement speed optimizations 
+- [x] Prevent closing of application during processing
+- [x] Add time taken calculation
 
 
 
 # To Do for .1 release
 
-- [ ] Prevent closing of application during processing?
 - [ ] Implement drag and drop functionality
-- [ ] Add time taken calculation
+- [ ] Network drive performance optimizations 
 - [ ] Handle duplicate files? (counter + list)

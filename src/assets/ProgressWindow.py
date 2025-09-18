@@ -85,9 +85,9 @@ class Ui_ProgressWindow(object):
     def retranslateUi(self, ProgressWindow):
         _translate = QtCore.QCoreApplication.translate
         ProgressWindow.setWindowTitle(_translate("ProgressWindow", "Sorting Progress"))
-        self.labelPercentage.setText(_translate("ProgressWindow", "0%"))
-        self.labelRemaining.setText(_translate("ProgressWindow", "🔄️ Remaining: 0"))
+        self.labelPercentage.setText(_translate("ProgressWindow", "0 %"))
+        self.labelRemaining.setText(_translate("ProgressWindow", "🔄️ Remaining: -"))
         self.labelSorted.setText(_translate("ProgressWindow", "   ✅ Sorted: 0"))
         self.labelFailed.setText(_translate("ProgressWindow", "   ❌ Failed: 0"))
-        self.labelTime.setText(_translate("ProgressWindow", "⌛Time remaining: "))
+        self.labelTime.setText(_translate("ProgressWindow", "⌛Time remaining: -"))
         self.groupBoxLogs.setTitle(_translate("ProgressWindow", "📝 Log Output"))

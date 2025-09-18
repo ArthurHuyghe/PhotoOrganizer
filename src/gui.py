@@ -29,7 +29,7 @@ except ImportError:
 class PhotoOrganizerWorker(QtCore.QThread):
     # Custom signals to communicate with the main thread
     # For progress updates (current, total, failed)
-    progress_updated = QtCore.pyqtSignal(int, int, int)
+    progress_updated = QtCore.pyqtSignal(int, int, int, float)
     # For log messages
     log_updated = QtCore.pyqtSignal(str)
     # When task completes
@@ -230,7 +230,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             QtWidgets.QFileDialog.Option.ReadOnly
             | QtWidgets.QFileDialog.Option.ShowDirsOnly
         )
-
+        if self.lineEditSource.text():
+            self.source = self.lineEditSource.text()
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             parent=self,
             caption="Select Source Folder",
@@ -250,7 +251,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             QtWidgets.QFileDialog.Option.ReadOnly
             | QtWidgets.QFileDialog.Option.ShowDirsOnly
         )
-
+        if self.lineEditDestination.text():
+            self.destination = self.lineEditDestination.text()
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             parent=self,
             caption="Select Destination Folder",
@@ -274,7 +276,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         Handles the state change of the 'Remove Empty Folders' checkbox.
         """
         self.remove_empty_folders_enabled = self.checkBoxRemoveEmpty.isChecked()
-        logging.info(f"Remove empty folders enabled: {self.remove_empty_folders_enabled}")
+        logging.info(
+            f"Remove empty folders enabled: {self.remove_empty_folders_enabled}"
+        )
 
     # Method to start sorting process
     def start_sorting(self) -> None:
@@ -367,8 +371,14 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         self.worker = worker
         self.processing_done = False  # True once worker signals completion
 
+        # Disable close button and system menu while processing
+        self.setWindowFlags(
+            QtCore.Qt.WindowType.Dialog
+            | QtCore.Qt.WindowType.WindowTitleHint
+            | QtCore.Qt.WindowType.CustomizeWindowHint
+            | QtCore.Qt.WindowType.WindowMinMaxButtonsHint
+        )
         # Ensure this is a top-level dialog (not a SubWindow embedded in the main window)
-        self.setWindowFlags(QtCore.Qt.WindowType.Dialog | QtCore.Qt.WindowType.Window)
         self.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
         self.setModal(True)
 
@@ -379,17 +389,35 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         self.plainTextEditLogs.setFont(fixed)
         self.plainTextEditLogs.setWordWrapMode(QtGui.QTextOption.WrapMode.NoWrap)
 
-        # Hide timelabel until function is implemented
-        self.labelTime.hide()
-
         # Alt+Q (Quit) inside progress dialog ONLY after finished
         self.shortcut_quit = QtGui.QShortcut(QtGui.QKeySequence("Alt+Q"), self)
         self.shortcut_quit.setContext(QtCore.Qt.ShortcutContext.ApplicationShortcut)
-        self.shortcut_quit.activated.connect(self._attempt_quit)
+        self.shortcut_quit.activated.connect(self.control_closing)
         self.shortcut_quit.setEnabled(False)  # Enable after finish
 
         # Track finish state from worker
-        self.worker.finished.connect(self._mark_finished)
+        self.worker.finished.connect(self.processing_finished)
+
+    def processing_finished(self):
+        """Restore window controls once processing is finished."""
+        self.processing_done = True
+        self.shortcut_quit.setEnabled(True)
+        # Re-enable close button and system menu
+        self.setWindowFlags(QtCore.Qt.WindowType.Dialog | QtCore.Qt.WindowType.Window)
+        self.show()  # Necessary to re-show the window with updated flags
+        
+    def control_closing(self):
+        """Control closing behavior - only allow closing when processing is finished."""
+        if not self.processing_done:
+            # Show a message to inform the user that sorting is still in progress
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Sorting in Progress",
+                "Please wait for the sorting process to complete before closing.",
+            )
+            return  # Ignore the close event
+        else:
+            self.close()  # Invoke the close event
 
     def set_progress_style(self, color: str):
         """Apply stylesheet with given chunk color."""
@@ -405,7 +433,9 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
             }}
         """)
 
-    def update_progress(self, current: int, total: int, failed: int) -> None:
+    def update_progress(
+        self, current: int, total: int, failed: int, estimated_time: float
+    ) -> None:
         """Update the progress bar and labels"""
 
         percentage = int((current + failed) / total * 100) if total > 0 else 0
@@ -417,6 +447,23 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         remaining = max(total - current - failed, 0)
         self.labelRemaining.setText(f"🔄️ Remaining: {remaining}")
         self.labelFailed.setText(f"❌ Failed: {failed}")
+        if estimated_time < 0:
+            self.labelTime.setText("⏳ Time remaining: -")
+        elif estimated_time / 3600 > 1:
+            hours = round(estimated_time / 3600)
+            self.labelTime.setText(
+                f"⏳ Time remaining: {hours} hour{'s' if hours > 1 else ''}"
+            )
+        elif estimated_time / 60 > 1:
+            minutes = round(estimated_time / 60)
+            self.labelTime.setText(
+                f"⏳ Time remaining: {minutes} minute{'s' if minutes > 1 else ''}"
+            )
+        else:
+            seconds = round(estimated_time)
+            self.labelTime.setText(
+                f"⏳ Time remaining: {seconds} second{'s' if seconds > 1 else ''}"
+            )
 
     def update_logs(self, log: str) -> None:
         """Append log messages to the logs text area"""
@@ -436,19 +483,6 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         )
         confirmed = response == QtWidgets.QMessageBox.StandardButton.Yes
         self.worker.handle_confirmation_response(confirmed)
-
-    # --- Internal helpers for finish state & quitting ---
-    def _mark_finished(self):
-        """Enable quit shortcut once processing is finished."""
-        self.processing_done = True
-        self.shortcut_quit.setEnabled(True)
-
-    def _attempt_quit(self):
-        """Quit application if sorting finished; ignore otherwise."""
-        if not self.processing_done:
-            # Optionally could flash or show a brief message; silently ignore for now.
-            return
-        QtWidgets.QApplication.instance().quit()
 
 
 if __name__ == "__main__":
