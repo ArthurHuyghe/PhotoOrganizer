@@ -192,7 +192,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write(self.lineEditSource.text())
 
             # Save destination folder
-            dest_file = basedir / "assets" / "LastUseddestination.txt"
+            dest_file = basedir / "assets" / "LastUsedDestination.txt"
             with open(dest_file, "w", encoding="utf-8") as f:
                 f.write(self.lineEditDestination.text())
 
@@ -210,7 +210,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                     self.source = last_source
 
             # Load destination folder
-            dest_file = basedir / "assets" / "LastUseddestination.txt"
+            dest_file = basedir / "assets" / "LastUsedDestination.txt"
             if dest_file.exists():
                 with open(dest_file, "r", encoding="utf-8") as f:
                     last_dest = f.read().strip()
@@ -373,10 +373,10 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
 
         # Disable close button and system menu while processing
         self.setWindowFlags(
-            QtCore.Qt.WindowType.Dialog
-            | QtCore.Qt.WindowType.WindowTitleHint
-            | QtCore.Qt.WindowType.CustomizeWindowHint
-            | QtCore.Qt.WindowType.WindowMinMaxButtonsHint
+            QtCore.Qt.WindowType.Dialog # Set as dialog
+            | QtCore.Qt.WindowType.WindowTitleHint # Show title bar
+            | QtCore.Qt.WindowType.CustomizeWindowHint # Allows window customization
+            | QtCore.Qt.WindowType.WindowMinMaxButtonsHint # Only allow minimize/maximize
         )
         # Ensure this is a top-level dialog (not a SubWindow embedded in the main window)
         self.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
@@ -403,9 +403,9 @@ class ProgressDialog(QtWidgets.QDialog, Ui_ProgressWindow):
         self.processing_done = True
         self.shortcut_quit.setEnabled(True)
         # Re-enable close button and system menu
-        self.setWindowFlags(QtCore.Qt.WindowType.Dialog | QtCore.Qt.WindowType.Window)
-        self.show()  # Necessary to re-show the window with updated flags
-        
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowCloseButtonHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowSystemMenuHint, True)
+        self.show()
     def control_closing(self):
         """Control closing behavior - only allow closing when processing is finished."""
         if not self.processing_done:
