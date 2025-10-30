@@ -126,39 +126,39 @@ class PhotoOrganizer:
                 # Ensure the file handle is closed promptly for large batches
                 with Image.open(file) as image:
                     exif_data = image.getexif()
-                if exif_data:
-                    # Debug EXIF tags only when debug logging is enabled
-                    if self._debug_enabled:
-                        debug_exif_tags(exif_data)
-
-                    # Try DateTimeOriginal first (most reliable)
-                    sub_ifd = exif_data.get_ifd(0x8769)  # EXIF Sub-IFD
-                    if sub_ifd and 36867 in sub_ifd:
+                    if exif_data:
+                        # Debug EXIF tags only when debug logging is enabled
                         if self._debug_enabled:
-                            debug_exif_tags(sub_ifd)
-                        try:
-                            return datetime.strptime(
-                                sub_ifd[36867], "%Y:%m:%d %H:%M:%S"
-                            ).date()
-                        except ValueError:
-                            logging.warning(
-                                "Invalid DateTimeOriginal format: %s", sub_ifd[36867]
-                            )
+                            debug_exif_tags(exif_data)
 
-                    # Fallback to DateTime tag
-                    logging.debug("Falling back to DateTime tag")
-                    if 306 in exif_data:
-                        try:
-                            return datetime.strptime(
-                                exif_data[306], "%Y:%m:%d %H:%M:%S"
-                            ).date()
-                        except ValueError:
+                        # Try DateTimeOriginal first (most reliable)
+                        sub_ifd = exif_data.get_ifd(0x8769)  # EXIF Sub-IFD
+                        if sub_ifd and 36867 in sub_ifd:
                             if self._debug_enabled:
+                                debug_exif_tags(sub_ifd)
+                            try:
+                                return datetime.strptime(
+                                    sub_ifd[36867], "%Y:%m:%d %H:%M:%S"
+                                ).date()
+                            except ValueError:
                                 logging.warning(
-                                    "Invalid DateTime format: %s", exif_data[306]
+                                    "Invalid DateTimeOriginal format: %s", sub_ifd[36867]
                                 )
-                else:
-                    logging.info("No EXIF data found in image: %s", file.name)
+
+                        # Fallback to DateTime tag
+                        logging.debug("Falling back to DateTime tag")
+                        if 306 in exif_data:
+                            try:
+                                return datetime.strptime(
+                                    exif_data[306], "%Y:%m:%d %H:%M:%S"
+                                ).date()
+                            except ValueError:
+                                if self._debug_enabled:
+                                    logging.warning(
+                                        "Invalid DateTime format: %s", exif_data[306]
+                                    )
+                    else:
+                        logging.info("No EXIF data found in image: %s", file.name)
 
             except Exception as e:
                 logging.warning("Error reading image metadata from %s: %s", file, e)
