@@ -1,4 +1,4 @@
-$source = 'C:\Users\Arthu\Documents\GitHub\PhotoOrganizer\tests\result'
+$source = "P:\2025\07\2025"
 Get-ChildItem -Attributes !Directory $source -Recurse | 
 Foreach-Object {
     if ($_.DirectoryName -eq $source) {

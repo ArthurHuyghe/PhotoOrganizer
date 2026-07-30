@@ -30,3 +30,7 @@
 - [ ] Implement drag and drop functionality
 - [ ] Network drive performance optimizations 
 - [ ] Handle duplicate files? (counter + list)
+- [ ] Fluent progress bar updates
+- [ ] Skipped files considered as separate counter
+- [ ] Make magnifier glass animated
+- [ ] Add live counting of files to be processed

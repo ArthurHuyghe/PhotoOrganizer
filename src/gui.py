@@ -1,10 +1,10 @@
 # PhotoOrganizer_v3/gui.py
 # This script creates a simple GUI for the Photo Organizer application using PyQt6.
-import sys
 import logging
+import sys
 from pathlib import Path
-from PyQt6 import QtWidgets, QtCore
-from PyQt6 import QtGui
+
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from assets.MainWindow import Ui_MainWindow
 from assets.ProgressWindow import Ui_ProgressWindow
@@ -18,11 +18,10 @@ basedir = Path(__file__).parent
 try:
     from ctypes import windll  # Only exists on Windows.
 
-    myappid = "Huyghe.Arthur.PhotoOrganizer.3.0"
+    myappid = "Huyghe.Arthur.PhotoOrganizer.3.0.1"
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     logging.warning("Failed to set application ID.")
-    pass
 
 
 # Worker classes
@@ -285,9 +284,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def start_sorting(self) -> None:
         """
         Starts the sorting process based on the selected options.
-
-
-        This method should be connected to the sorting logic of the application.
         """
         # Check for empty input fields
         if not self.lineEditSource.text() or not self.lineEditDestination.text():

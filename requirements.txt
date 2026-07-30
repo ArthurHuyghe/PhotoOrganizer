@@ -1,0 +1,5 @@
+Pillow>=12.3.0
+PyQt6>=6.9.1
+pymediainfo>=7.0.1
+pillow-heif>=1.5.0
+pyinstaller>=6.21.0

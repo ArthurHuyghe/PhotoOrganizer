@@ -17,7 +17,7 @@ a = Analysis(
     datas=[
         (f'{BASE_PATH}\\src\\assets\\icons\\Photo Organizer icon.ico', 'assets/icons'),
         (f'{BASE_PATH}\\src\\assets\\LastUsedSource.txt', 'assets'),
-        (f'{BASE_PATH}\\src\\assets\\LastUseddestination.txt', 'assets'),
+        (f'{BASE_PATH}\\src\\assets\\LastUsedDestination.txt', 'assets'),
     ],
     hiddenimports=[],
     hookspath=[],

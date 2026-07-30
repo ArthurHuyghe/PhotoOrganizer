@@ -1,4 +1,4 @@
-# Photo Organizer v3.0
+# Photo Organizer v3
 
 A Python application that automatically organizes your photos and videos into date-based folder structures using metadata analysis. Built with PyQt6 for a modern, user-friendly interface.
 
@@ -19,7 +19,7 @@ A Python application that automatically organizes your photos and videos into da
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - Windows OS (tested on Windows 11)
 
 ### Using the Pre-built Executable

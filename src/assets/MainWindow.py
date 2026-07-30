@@ -99,7 +99,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "Photo Organizer v3.0"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Photo Organizer v3.0.1"))
         self.btnBrowseSource.setText(_translate("MainWindow", "Browse…"))
         self.labelSource.setText(_translate("MainWindow", "<html><head/><body><p><span style=\" font-size:12pt;\">📂</span> Source Folder:</p></body></html>"))
         self.btnBrowseDestination.setText(_translate("MainWindow", "Browse…"))

@@ -3,28 +3,25 @@
 # The GUI allows the user to select the date format for the folder names and whether it should delete empty folders after processing.
 # It is a port to Python from the powershell script PhotoOrganizer_v2/PhotoOrganizer_v2.ps1
 
-
-from pathlib import Path
-from typing import Union, Optional
+import ctypes
+import logging
 import os
 import shutil
-from datetime import datetime, date
-import logging
-import ctypes
+from datetime import date, datetime
+from pathlib import Path
 from time import perf_counter
+from typing import Optional, Union
 
 from PIL import Image
 from PIL.ExifTags import TAGS
-from pymediainfo import MediaInfo
 from pillow_heif import register_heif_opener  # Import HEIF support for Pillow
+from pymediainfo import MediaInfo
 
 # Register HEIF opener with Pillow
 register_heif_opener(thumbnails=False)
 
 # Configure logging
-logging.basicConfig(
-    level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 def debug_exif_tags(exif_data):
@@ -100,7 +97,7 @@ class PhotoOrganizer:
         if file.name in excluded_files:
             return False
 
-        # Check file extension against supported formats (class-level)
+        # Check file extension against supported formats 
         if file.suffix.lower() not in self.SUPPORTED_EXTENSIONS:
             return False
 
@@ -137,9 +134,7 @@ class PhotoOrganizer:
                             if self._debug_enabled:
                                 debug_exif_tags(sub_ifd)
                             try:
-                                return datetime.strptime(
-                                    sub_ifd[36867], "%Y:%m:%d %H:%M:%S"
-                                ).date()
+                                return datetime.strptime(sub_ifd[36867], "%Y:%m:%d %H:%M:%S").date()
                             except ValueError:
                                 logging.warning(
                                     "Invalid DateTimeOriginal format: %s", sub_ifd[36867]
@@ -149,14 +144,10 @@ class PhotoOrganizer:
                         logging.debug("Falling back to DateTime tag")
                         if 306 in exif_data:
                             try:
-                                return datetime.strptime(
-                                    exif_data[306], "%Y:%m:%d %H:%M:%S"
-                                ).date()
+                                return datetime.strptime(exif_data[306], "%Y:%m:%d %H:%M:%S").date()
                             except ValueError:
                                 if self._debug_enabled:
-                                    logging.warning(
-                                        "Invalid DateTime format: %s", exif_data[306]
-                                    )
+                                    logging.warning("Invalid DateTime format: %s", exif_data[306])
                     else:
                         logging.info("No EXIF data found in image: %s", file.name)
 
@@ -180,9 +171,7 @@ class PhotoOrganizer:
                             if date_str is not None:
                                 try:
                                     # Clean up and standardize date string
-                                    date_str = date_str.replace(" UTC", "").replace(
-                                        "UTC ", ""
-                                    )
+                                    date_str = date_str.replace(" UTC", "").replace("UTC ", "")
 
                                     # Try common formats
                                     formats = [
@@ -194,20 +183,14 @@ class PhotoOrganizer:
 
                                     for fmt in formats:
                                         try:
-                                            return datetime.strptime(
-                                                date_str, fmt
-                                            ).date()
+                                            return datetime.strptime(date_str, fmt).date()
                                         except ValueError:
                                             continue
                                 except Exception as e:
-                                    logging.warning(
-                                        "Failed parsing %s: %s", date_field, e
-                                    )
+                                    logging.warning("Failed parsing %s: %s", date_field, e)
                                     continue
 
-                        logging.warning(
-                            "No valid date found in video metadata: %s", file.name
-                        )
+                        logging.warning("No valid date found in video metadata: %s", file.name)
             except Exception as e:
                 logging.error("Error reading metadata from %s: %s", file, e)
                 return None
@@ -219,9 +202,7 @@ class PhotoOrganizer:
                 if entry.is_file():
                     # Check if file is not hidden and not system
                     attrs = ctypes.windll.kernel32.GetFileAttributesW(entry.path)
-                    if attrs != -1 and not (
-                        attrs & 2
-                    ):  # Hidden=2, System=4 "or attrs & 4"
+                    if attrs != -1 and not (attrs & 2):  # Hidden=2, System=4 "or attrs & 4"
                         return True
             return False
         except OSError:
@@ -248,9 +229,7 @@ class PhotoOrganizer:
                 except OSError as e:
                     if log_callback:
                         log_callback(f" • Failed to remove file {file_path}: {e}")
-                    self.failed_files.append(
-                        f" • removal hidden/system file: {file_path}"
-                    )
+                    self.failed_files.append(f" • removal hidden/system file: {file_path}")
             else:
                 if log_callback:
                     log_callback(f" • Skipped removing file: {file_path}")
@@ -317,9 +296,7 @@ class PhotoOrganizer:
         if len(self.list_of_processing_times) > 300:
             # Keep only the last 300 processing times for a rolling average
             self.list_of_processing_times = self.list_of_processing_times[-300:]
-        average_time = sum(self.list_of_processing_times) / len(
-            self.list_of_processing_times
-        )
+        average_time = sum(self.list_of_processing_times) / len(self.list_of_processing_times)
         files_left = self.total_files - self.processed_files - self.failed_count
         self.estimated_time_remaining = average_time * files_left
 
@@ -354,15 +331,18 @@ class PhotoOrganizer:
         if log_callback:
             log_callback("🔍 Scanning source folder for files...")
         # Get list of files to process using list comprehension
-        files_to_process = [
-            file for file in source_path.rglob("*") if self.is_valid_file(file)
-        ]
+        files_to_process = [file for file in source_path.rglob("*") if self.is_valid_file(file)]
 
         # Update total files count
         self.total_files = len(files_to_process)
 
         if progress_callback:
-            progress_callback(self.processed_files, self.total_files, self.failed_count, self.estimated_time_remaining)
+            progress_callback(
+                self.processed_files,
+                self.total_files,
+                self.failed_count,
+                self.estimated_time_remaining,
+            )
 
         # start processing files
         if log_callback:
@@ -412,7 +392,6 @@ class PhotoOrganizer:
                     file_new_path.mkdir(parents=True, exist_ok=True)
 
                     # Generate new file path, handling duplicates
-                    # TODO: implement counter and list for duplicate files
 
                     new_file_path = file_new_path / file.name
                     if new_file_path.exists():
@@ -428,28 +407,18 @@ class PhotoOrganizer:
                             log_callback(
                                 f"   File {file.name} already exists in {file_new_path}, skipping."
                             )
-                        continue  # This prevents the file from being moved
-
-                        # If file exists, append number until we find a unique name
-                        # counter = 1
-                        # while new_file_path.exists():
-                        #     stem = file.stem
-                        #     suffix = file.suffix
-                        #     new_name = f"{stem}_{counter}{suffix}"
-                        #     new_file_path = file_new_path / new_name
-                        #     counter += 1
+                        continue
 
                     try:
                         # Move the file to new location
                         shutil.move(str(file), str(new_file_path))
-                        # Increment processed files count
                         self.processed_files += 1
                         # Record processing time for this file
                         file_end_time = perf_counter()
                         file_processing_time = file_end_time - file_start_time
                         self.list_of_processing_times.append(file_processing_time)
                         self.update_estimate_time_remaining()
-                        
+
                         if progress_callback:
                             progress_callback(
                                 self.processed_files,
@@ -513,9 +482,9 @@ class PhotoOrganizer:
                 total_time_str = f"{total_time / 60:.2f} minutes"
             else:
                 total_time_str = f"{total_time / 3600:.2f} hours"
-            
+
             average_time = total_time / self.total_files if self.total_files > 0 else 0
-                
+
             if average_time < 1:
                 average_time_str = f"{average_time * 1000:.2f} ms"
             elif average_time < 60:
@@ -533,9 +502,7 @@ class PhotoOrganizer:
                 f" • Total files processed : {self.processed_files}",
                 f" • Total files failed    : {self.failed_count}",
                 f" • Processing time       : {total_time_str}",
-                f" • Average per file      : {average_time_str}"
-                if self.total_files > 0
-                else "",
+                f" • Average per file      : {average_time_str}" if self.total_files > 0 else "",
                 "",
             ]
 
