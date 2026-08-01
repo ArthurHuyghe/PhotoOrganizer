@@ -3,7 +3,6 @@
 # The GUI allows the user to select the date format for the folder names and whether it should delete empty folders after processing.
 # It is a port to Python from the powershell script PhotoOrganizer_v2/PhotoOrganizer_v2.ps1
 
-import ctypes
 import logging
 import os
 import shutil
@@ -44,7 +43,7 @@ class PhotoOrganizer:
     Provides methods to sort files, move them to destination folders, and optionally remove empty directories.
     """
 
-    # Class-level extension definitions (single source of truth)
+    # Class-level extension definitions
     IMAGE_EXTENSIONS = {
         ".jpg",
         ".jpeg",
@@ -84,32 +83,10 @@ class PhotoOrganizer:
 
     def is_valid_file(self, file: Path) -> bool:
         """Check if file should be processed."""
-        # Basic file checks
-        if not file.is_file():
-            return False
+        unsupported_file_format = file.suffix.lower() not in self.SUPPORTED_EXTENSIONS
+        hidden_or_temp_file = file.name.startswith((".", "~$"))
 
-        # Skip hidden/system files
-        if file.name.startswith((".", "~$")):
-            return False
-
-        # Skip excluded system files
-        excluded_files = {"Thumbs.db", "desktop.ini"}
-        if file.name in excluded_files:
-            return False
-
-        # Check file extension against supported formats 
-        if file.suffix.lower() not in self.SUPPORTED_EXTENSIONS:
-            return False
-
-        # Skip empty files (only check for non-RAW formats to avoid expensive stat calls)
-        if file.suffix.lower() not in {".cr2", ".arw", ".dng"}:
-            try:
-                if file.stat().st_size == 0:
-                    return False
-            except OSError:
-                return False
-
-        return True
+        return not (unsupported_file_format or hidden_or_temp_file)
 
     def get_file_date(self, file: Path) -> Optional[date]:
         """Get creation date from file based on type.
@@ -195,28 +172,17 @@ class PhotoOrganizer:
                 logging.error("Error reading metadata from %s: %s", file, e)
                 return None
 
-    def has_regular_files(self, path: Path) -> bool:
-        """Check if directory contains any non-hidden, non-system files"""
-        try:
-            for entry in os.scandir(path):
-                if entry.is_file():
-                    # Check if file is not hidden and not system
-                    attrs = ctypes.windll.kernel32.GetFileAttributesW(entry.path)
-                    if attrs != -1 and not (attrs & 2):  # Hidden=2, System=4 "or attrs & 4"
-                        return True
-            return False
-        except OSError:
-            return False
-
-    def delete_file_with_confirmation(
+    def delete_file(
         self, file_path: str, log_callback=None, remove_confirmation_callback=None
-    ) -> None:
+    ) -> bool:
         """Delete a file with confirmation
 
         Args:
             file_path: The path of the file to delete
             log_callback: Optional callback function to log messages
             remove_confirmation_callback: Optional callback function to confirm file removal
+        Returns:
+            bool: True if the file was removed, False otherwise
         """
         if remove_confirmation_callback:
             # If a callback is provided, use it to ask for confirmation
@@ -226,13 +192,15 @@ class PhotoOrganizer:
                     os.remove(file_path)
                     if log_callback:
                         log_callback(f" • Removed file: {file_path}")
+                    return True
                 except OSError as e:
                     if log_callback:
                         log_callback(f" • Failed to remove file {file_path}: {e}")
-                    self.failed_files.append(f" • removal hidden/system file: {file_path}")
+                    return False
             else:
                 if log_callback:
                     log_callback(f" • Skipped removing file: {file_path}")
+                return False
         else:
             # If no callback, ask for confirmation in console
             confirm = ""
@@ -242,10 +210,29 @@ class PhotoOrganizer:
                 try:
                     os.remove(file_path)
                     logging.info("Removed file: %s", file_path)
+                    return True
                 except OSError as e:
                     logging.warning("Failed to remove file %s: %s", file_path, e)
+                    return False
             else:
                 logging.info("Skipped removing file: %s", file_path)
+                return False
+
+    def is_hidden_or_system_file(self, entry: os.DirEntry) -> bool:
+        """Return True if the file is hidden or a system file."""
+        # unix-like systems
+        if entry.name.startswith("."):
+            return True
+
+        # windows systems
+        common_windows_files = {"desktop.ini", "thumbs.db"}
+        if entry.name.lower() in common_windows_files:
+            return True
+        if os.name == "nt":
+            attrs = entry.stat(follow_symlinks=False).st_file_attributes
+            if attrs & 2 or attrs & 4:  # Hidden=2, System=4
+                return True
+        return False
 
     def delete_empty_folders(
         self, root: Path, log_callback=None, remove_confirmation_callback=None
@@ -256,38 +243,83 @@ class PhotoOrganizer:
             root: The root directory to start searching for empty folders
             log_callback: Optional callback function to log messages
             remove_confirmation_callback: Optional callback function to confirm file removal
+        Returns:
+            int: The number of empty folders removed
         """
-        counter = 0
-        while True:
-            empty_found = False
-            for current_dir, subdirs, _ in os.walk(root, topdown=False):
-                for folder in subdirs:
-                    full_path = Path(current_dir) / Path(folder)
-                    try:
-                        # First check if directory has any regular files
-                        if not self.has_regular_files(full_path):
-                            # If no regular files, delete any hidden/system files
-                            for entry in os.scandir(full_path):
-                                if entry.is_file():
-                                    self.delete_file_with_confirmation(
-                                        entry.path,
-                                        log_callback=log_callback,
-                                        remove_confirmation_callback=remove_confirmation_callback,
-                                    )
-                            # Now try to remove the empty directory
-                            if not os.listdir(full_path):
-                                os.rmdir(full_path)
-                                counter += 1
-                                empty_found = True
-                                logging.debug("Removed empty folder: %s", full_path)
+        removed_count = 0
 
-                    except OSError as e:
-                        logging.warning("Failed to remove %s: %s", full_path, e)
+        def process_dir(dir_path: str, is_root: bool = False) -> bool:
+            """searches for empty folders and removes them recursively.
 
-            if not empty_found:
-                logging.info("No more empty folders found.")
-                break  # Exit loop if no empty folders were found
-        return counter
+            Args:
+                dir_path (str): The path of the directory to process.
+                is_root (bool, optional): Indicates if the directory is the root directory. Defaults to False.
+
+            Returns:
+                bool: A boolean indicating whether the directory still exists after processing.
+            """
+
+            nonlocal removed_count
+            contains_content = False
+            ignored_files: list[os.DirEntry] = []
+
+            try:
+                with os.scandir(dir_path) as it:
+                    for entry in it:
+                        # check voor entry type and handle exceptions for inaccessible entries
+                        try:
+                            is_dir = entry.is_dir(follow_symlinks=False)
+                        except OSError as e:
+                            if log_callback:
+                                log_callback(f" • Error accessing {entry.path}: {e}")
+                            contains_content = True  # Treat as non-empty to avoid deletion
+                            continue
+
+                        if is_dir:
+                            if process_dir(entry.path):
+                                contains_content = True
+                        else:
+                            try:
+                                is_ignored = self.is_hidden_or_system_file(entry)
+                            except OSError as e:
+                                if log_callback:
+                                    log_callback(f" • Error accessing {entry.path}: {e}")
+                                contains_content = True  # Treat as non-empty to avoid deletion
+                                continue
+                            if is_ignored:
+                                ignored_files.append(entry)
+                            else:
+                                contains_content = True
+            except OSError as e:
+                if log_callback:
+                    log_callback(f" • Error accessing {dir_path}: {e}")
+                return True  # Treat as non-empty to avoid deletion
+
+            if contains_content or is_root:
+                return True  # Do not delete this directory
+
+            # Remove ignored files first
+            for ignored_file in ignored_files:
+                if not self.delete_file(
+                    ignored_file.path, log_callback, remove_confirmation_callback
+                ):
+                    return True  # If file wasnt deleted, treat as non-empty
+
+            # Remove the empty directory
+            try:
+                os.rmdir(dir_path)
+                removed_count += 1
+                if log_callback:
+                    log_callback(f" • Removed empty folder: {dir_path}")
+                return False  # Directory was removed
+            except OSError as e:
+                if log_callback:
+                    log_callback(f" • Failed to remove folder {dir_path}: {e}")
+                return True  # Treat as non-empty
+
+        process_dir(os.fspath(root), is_root=True)
+        logging.info("Finished cleaning up folders. Total removed: %d", removed_count)
+        return removed_count
 
     def update_estimate_time_remaining(self) -> None:
         """Calculate estimated time remaining based on average processing time."""
