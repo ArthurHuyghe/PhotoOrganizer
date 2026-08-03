@@ -9,7 +9,7 @@ import shutil
 from datetime import date, datetime
 from pathlib import Path
 from time import perf_counter
-from typing import Optional, Union
+from typing import ClassVar
 
 from PIL import Image
 from PIL.ExifTags import TAGS
@@ -44,7 +44,7 @@ class PhotoOrganizer:
     """
 
     # Class-level extension definitions
-    IMAGE_EXTENSIONS = {
+    IMAGE_EXTENSIONS: ClassVar[set[str]] = {
         ".jpg",
         ".jpeg",
         ".png",
@@ -59,7 +59,7 @@ class PhotoOrganizer:
         ".avif",
     }
 
-    VIDEO_EXTENSIONS = {
+    VIDEO_EXTENSIONS: ClassVar[set[str]] = {
         ".mp4",
         ".avi",
         ".mov",
@@ -67,7 +67,7 @@ class PhotoOrganizer:
     }
 
     # Combined set of all supported file extensions
-    SUPPORTED_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
+    SUPPORTED_EXTENSIONS: ClassVar[set[str]] = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
 
     def __init__(self):
         """Initialize the PhotoOrganizer with default values."""
@@ -81,14 +81,7 @@ class PhotoOrganizer:
         self.list_of_processing_times: list[float] = []
         self.estimated_time_remaining: float = -1
 
-    def is_valid_file(self, file: Path) -> bool:
-        """Check if file should be processed."""
-        unsupported_file_format = file.suffix.lower() not in self.SUPPORTED_EXTENSIONS
-        hidden_or_temp_file = file.name.startswith((".", "~$"))
-
-        return not (unsupported_file_format or hidden_or_temp_file)
-
-    def get_file_date(self, file: Path) -> Optional[date]:
+    def get_file_date(self, file: Path) -> date | None:
         """Get creation date from file based on type.
         Returns:
             Optional[date]: The date extracted from the file's metadata, or None if no date could be found
@@ -128,7 +121,7 @@ class PhotoOrganizer:
                     else:
                         logging.info("No EXIF data found in image: %s", file.name)
 
-            except Exception as e:
+            except OSError as e:
                 logging.warning("Error reading image metadata from %s: %s", file, e)
 
         # video handling
@@ -335,8 +328,8 @@ class PhotoOrganizer:
     # main function
     def organize_photos(
         self,
-        source_folder: Union[str, Path],
-        destination_folder: Union[str, Path],
+        source_folder: str | Path,
+        destination_folder: str | Path,
         sort_by_day: bool = False,
         remove_empty: bool = True,
         progress_callback=None,
@@ -362,8 +355,21 @@ class PhotoOrganizer:
 
         if log_callback:
             log_callback("🔍 Scanning source folder for files...")
+
+        def is_valid_file(file: Path) -> bool:
+            """Check if file should be processed."""
+            unsupported_file_format = file.suffix.lower() not in self.SUPPORTED_EXTENSIONS
+            hidden_or_temp_file = file.name.startswith((".", "~$"))
+
+            return not (unsupported_file_format or hidden_or_temp_file)
+
         # Get list of files to process using list comprehension
-        files_to_process = [file for file in source_path.rglob("*") if self.is_valid_file(file)]
+        files_to_process = []
+        for root, _, files in os.walk(source_path):
+            for file in files:
+                file_path = Path(root) / file
+                if is_valid_file(file_path):
+                    files_to_process.append(file_path)
 
         # Update total files count
         self.total_files = len(files_to_process)
@@ -462,7 +468,7 @@ class PhotoOrganizer:
                         if log_callback:
                             log_callback(f"   Moved {file.name} to {new_file_path}")
 
-                    except Exception as e:
+                    except OSError as e:
                         if log_callback:
                             log_callback(f"   ❌ Failed to move {file.name}: {e}")
                         logging.error("Failed to move %s: %s", file.name, e)
@@ -485,7 +491,7 @@ class PhotoOrganizer:
                             self.estimated_time_remaining,
                         )
 
-            except Exception as e:
+            except OSError as e:
                 if log_callback:
                     log_callback(f"   ❌ Failed to get date for {file.name}: {e}")
                 logging.error("Failed to get date for %s: %s", file.name, e)
@@ -596,8 +602,3 @@ if __name__ == "__main__":
     )
 
     logging.info("Photo organization complete!")
-    logging.info("failed files: %d", organizer.failed_count)
-    if organizer.failed_files:
-        logging.info("List of failed files:")
-        for failed_file in organizer.failed_files:
-            logging.info(" - %s", failed_file)
