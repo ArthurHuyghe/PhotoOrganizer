@@ -81,89 +81,93 @@ class PhotoOrganizer:
         self.list_of_processing_times: list[float] = []
         self.estimated_time_remaining: float = -1
 
-    def get_file_date(self, file: Path) -> date | None:
-        """Get creation date from file based on type.
+    def get_image_date(self, file: Path) -> date | None:
+        """Retrieve the date the image was taken.
+
+        Args:
+            file (Path): the path to the image
+
         Returns:
-            Optional[date]: The date extracted from the file's metadata, or None if no date could be found
-        """
-        # image handling
-        ext = file.suffix.lower()
-        if ext in self.IMAGE_EXTENSIONS:
-            try:
-                # Ensure the file handle is closed promptly for large batches
-                with Image.open(file) as image:
-                    exif_data = image.getexif()
-                    if exif_data:
-                        # Debug EXIF tags only when debug logging is enabled
+            date | None: the date the image was taken or None if one was not found or an error occurred
+        """        
+        try:
+            with Image.open(file) as image:
+                exif_data = image.getexif()
+                if exif_data:
+                    # Debug EXIF tags only when debug logging is enabled
+                    if self._debug_enabled:
+                        debug_exif_tags(exif_data)
+
+                    # Try DateTimeOriginal first (most reliable)
+                    sub_ifd = exif_data.get_ifd(0x8769)  # EXIF Sub-IFD
+                    if sub_ifd and 36867 in sub_ifd:
                         if self._debug_enabled:
-                            debug_exif_tags(exif_data)
+                            debug_exif_tags(sub_ifd)
+                        try:
+                            return datetime.strptime(sub_ifd[36867], "%Y:%m:%d %H:%M:%S").date()
+                        except ValueError:
+                            logging.warning("Invalid DateTimeOriginal format: %s", sub_ifd[36867])
 
-                        # Try DateTimeOriginal first (most reliable)
-                        sub_ifd = exif_data.get_ifd(0x8769)  # EXIF Sub-IFD
-                        if sub_ifd and 36867 in sub_ifd:
+                    # Fallback to DateTime tag
+                    logging.debug("Falling back to DateTime tag")
+                    if 306 in exif_data:
+                        try:
+                            return datetime.strptime(exif_data[306], "%Y:%m:%d %H:%M:%S").date()
+                        except ValueError:
                             if self._debug_enabled:
-                                debug_exif_tags(sub_ifd)
+                                logging.warning("Invalid DateTime format: %s", exif_data[306])
+                else:
+                    logging.info("No EXIF data found in image: %s", file.name)
+
+        except OSError as e:
+            logging.warning("Error reading image metadata from %s: %s", file, e)
+            return None
+
+    def get_video_date(self, file: Path) -> date | None:
+        """Retrieves the creation date from video.
+
+        Args:
+            file (Path): path to the video file
+
+        Returns:
+            date | None: The creation date of the video, or None if not found or an error occurs.
+        """        
+        try:
+            video_info = MediaInfo.parse(file)
+            for track in video_info.tracks:
+                if track.track_type == "General":
+                    # Try different date fields in order of reliability
+                    for date_field in [
+                        "recorded_date",
+                        "encoded_date",
+                        "tagged_date",
+                        "file_last_modification_date",
+                    ]:
+                        date_str = getattr(track, date_field)
+                        if date_str is not None:
                             try:
-                                return datetime.strptime(sub_ifd[36867], "%Y:%m:%d %H:%M:%S").date()
-                            except ValueError:
-                                logging.warning(
-                                    "Invalid DateTimeOriginal format: %s", sub_ifd[36867]
-                                )
-
-                        # Fallback to DateTime tag
-                        logging.debug("Falling back to DateTime tag")
-                        if 306 in exif_data:
-                            try:
-                                return datetime.strptime(exif_data[306], "%Y:%m:%d %H:%M:%S").date()
-                            except ValueError:
-                                if self._debug_enabled:
-                                    logging.warning("Invalid DateTime format: %s", exif_data[306])
-                    else:
-                        logging.info("No EXIF data found in image: %s", file.name)
-
-            except OSError as e:
-                logging.warning("Error reading image metadata from %s: %s", file, e)
-
-        # video handling
-        elif ext in self.VIDEO_EXTENSIONS:
-            try:
-                video_info = MediaInfo.parse(file)
-                for track in video_info.tracks:
-                    if track.track_type == "General":
-                        # Try different date fields in order of reliability
-                        for date_field in [
-                            "recorded_date",
-                            "encoded_date",
-                            "tagged_date",
-                            "file_last_modification_date",
-                        ]:
-                            date_str = getattr(track, date_field)
-                            if date_str is not None:
-                                try:
-                                    # Clean up and standardize date string
-                                    date_str = date_str.replace(" UTC", "").replace("UTC ", "")
-
-                                    # Try common formats
-                                    formats = [
-                                        "%Y-%m-%d %H:%M:%S",
-                                        "%Y-%m-%dT%H:%M:%S.%fZ",
-                                        "%Y-%m-%dT%H:%M:%SZ",
-                                        "%Y-%m-%d",
-                                    ]
-
-                                    for fmt in formats:
-                                        try:
-                                            return datetime.strptime(date_str, fmt).date()
-                                        except ValueError:
-                                            continue
-                                except Exception as e:
-                                    logging.warning("Failed parsing %s: %s", date_field, e)
-                                    continue
-
-                        logging.warning("No valid date found in video metadata: %s", file.name)
-            except Exception as e:
-                logging.error("Error reading metadata from %s: %s", file, e)
-                return None
+                                # Clean up and standardize date string
+                                date_str = date_str.replace(" UTC", "").replace("UTC ", "")
+                                # Try common formats
+                                formats = [
+                                    "%Y-%m-%d %H:%M:%S",
+                                    "%Y-%m-%dT%H:%M:%S.%fZ",
+                                    "%Y-%m-%dT%H:%M:%SZ",
+                                    "%Y-%m-%d",
+                                ]
+                                for fmt in formats:
+                                    try:
+                                        return datetime.strptime(date_str, fmt).date()
+                                    except ValueError:
+                                        continue
+                            except Exception as e:
+                                logging.warning("Failed parsing %s: %s", date_field, e)
+                                continue
+                    logging.warning("No valid date found in video metadata: %s", file.name)
+        except Exception as e:
+            logging.error("Error reading metadata from %s: %s", file, e)
+            return None
+      
 
     def delete_file(
         self, file_path: str, log_callback=None, remove_confirmation_callback=None
@@ -414,7 +418,14 @@ class PhotoOrganizer:
 
             # Check if file has a valid date
             try:
-                file_date = self.get_file_date(file)
+                ext = file.suffix.lower()
+                if ext in self.IMAGE_EXTENSIONS:
+                    file_date = self.get_image_date(file)
+                elif ext in self.VIDEO_EXTENSIONS:
+                    file_date = self.get_video_date(file)
+                else:
+                    logging.warning("Unsupported file type for date extraction: %s", file.name)
+                    file_date = None        
                 if file_date:
                     # Create the new folder structure based on the date
                     # Format folder structure based on sort_by_day option
