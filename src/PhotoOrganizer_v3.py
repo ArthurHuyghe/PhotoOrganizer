@@ -3,9 +3,11 @@
 # The GUI allows the user to select the date format for the folder names and whether it should delete empty folders after processing.
 # It is a port to Python from the powershell script PhotoOrganizer_v2/PhotoOrganizer_v2.ps1
 
+from dataclasses import dataclass, field
 import logging
 import os
 import shutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime
 from pathlib import Path
 from time import perf_counter
@@ -35,6 +37,15 @@ def debug_exif_tags(exif_data):
             tag_type,
             value,
         )
+
+
+@dataclass
+class ProcessingResult:
+    success: bool
+    file: Path
+    processing_time: float = 0.0
+    message: str = ""
+    destination: Path | None = None
 
 
 class PhotoOrganizer:
@@ -89,7 +100,7 @@ class PhotoOrganizer:
 
         Returns:
             date | None: the date the image was taken or None if one was not found or an error occurred
-        """        
+        """
         try:
             with Image.open(file) as image:
                 exif_data = image.getexif()
@@ -103,19 +114,25 @@ class PhotoOrganizer:
                     if sub_ifd and 36867 in sub_ifd:
                         if self._debug_enabled:
                             debug_exif_tags(sub_ifd)
+                        date = sub_ifd[36867]
+                        if isinstance(date, bytes):
+                            date = date.decode(errors="ignore")
                         try:
-                            return datetime.strptime(sub_ifd[36867], "%Y:%m:%d %H:%M:%S").date()
+                            return datetime.strptime(date, "%Y:%m:%d %H:%M:%S").date()
                         except ValueError:
-                            logging.warning("Invalid DateTimeOriginal format: %s", sub_ifd[36867])
+                            logging.warning("Invalid DateTimeOriginal format: %s", date)
 
                     # Fallback to DateTime tag
                     logging.debug("Falling back to DateTime tag")
                     if 306 in exif_data:
+                        date = exif_data[306]
+                        if isinstance(date, bytes):
+                            date = date.decode(errors="ignore")
                         try:
-                            return datetime.strptime(exif_data[306], "%Y:%m:%d %H:%M:%S").date()
+                            return datetime.strptime(date, "%Y:%m:%d %H:%M:%S").date()
                         except ValueError:
                             if self._debug_enabled:
-                                logging.warning("Invalid DateTime format: %s", exif_data[306])
+                                logging.warning("Invalid DateTime format: %s", date)
                 else:
                     logging.info("No EXIF data found in image: %s", file.name)
 
@@ -131,7 +148,7 @@ class PhotoOrganizer:
 
         Returns:
             date | None: The creation date of the video, or None if not found or an error occurs.
-        """        
+        """
         try:
             video_info = MediaInfo.parse(file)
             for track in video_info.tracks:
@@ -167,7 +184,6 @@ class PhotoOrganizer:
         except Exception as e:
             logging.error("Error reading metadata from %s: %s", file, e)
             return None
-      
 
     def delete_file(
         self, file_path: str, log_callback=None, remove_confirmation_callback=None
@@ -318,22 +334,104 @@ class PhotoOrganizer:
         logging.info("Finished cleaning up folders. Total removed: %d", removed_count)
         return removed_count
 
-    def update_estimate_time_remaining(self) -> None:
+    def update_estimate_time_remaining(self, new_time: float) -> None:
         """Calculate estimated time remaining based on average processing time."""
+        self.list_of_processing_times.append(new_time)
         if len(self.list_of_processing_times) < 10:
             return  # Not enough data to estimate
-        if len(self.list_of_processing_times) > 300:
-            # Keep only the last 300 processing times for a rolling average
-            self.list_of_processing_times = self.list_of_processing_times[-300:]
+        if len(self.list_of_processing_times) > 500:
+            # Keep only the last 500 processing times for a rolling average
+            self.list_of_processing_times = self.list_of_processing_times[-500:]
         average_time = sum(self.list_of_processing_times) / len(self.list_of_processing_times)
         files_left = self.total_files - self.processed_files - self.failed_count
         self.estimated_time_remaining = average_time * files_left
 
+    def process_file(
+        self, file: Path, destination_folder: Path, sort_by_day: bool
+    ) -> ProcessingResult:
+        # Start timing for this file, only used if file is processed
+        file_start_time = perf_counter()
+
+        # Check if file has a valid date
+        try:
+            ext = file.suffix.lower()
+            if ext in self.IMAGE_EXTENSIONS:
+                file_date = self.get_image_date(file)
+            elif ext in self.VIDEO_EXTENSIONS:
+                file_date = self.get_video_date(file)
+            else:
+                return ProcessingResult(
+                    success=False,
+                    file=file,
+                    processing_time=perf_counter() - file_start_time,
+                    message=f"   ❌ Unsupported file type {ext} for {file.name}, skipping.",
+                )
+
+            if file_date is None:
+                return ProcessingResult(
+                    success=False,
+                    file=file,
+                    processing_time=perf_counter() - file_start_time,
+                    message=f"   ❌ No valid date found for {file.name}, skipping.",
+                )
+
+        except OSError as e:
+            return ProcessingResult(
+                success=False,
+                file=file,
+                processing_time=perf_counter() - file_start_time,
+                message=f"   ❌ Error getting date: {e}",
+            )
+
+        # Create the new folder structure based on the date
+        # Format folder structure based on sort_by_day option
+        if sort_by_day:
+            date_folder = file_date.strftime("%Y/%m/%d")
+        else:
+            date_folder = file_date.strftime("%Y/%m")
+
+        # Create full destination path
+        file_new_path = Path(destination_folder) / date_folder
+
+        # Create all necessary directories
+        file_new_path.mkdir(parents=True, exist_ok=True)
+
+        # Generate new file path, handling duplicates
+
+        new_file_path = file_new_path / file.name
+        if new_file_path.exists():
+            return ProcessingResult(
+                success=False,
+                file=file,
+                processing_time=perf_counter() - file_start_time,
+                message=f"   ❌ File {file.name} already exists in {file_new_path}, skipping.",
+                destination=new_file_path,
+            )
+
+        try:
+            # Move the file to new location
+            shutil.move(str(file), str(new_file_path))
+            return ProcessingResult(
+                success=True,
+                file=file,
+                processing_time=perf_counter() - file_start_time,
+                destination=new_file_path,
+                message=f" • Moved {file.name} to {new_file_path}",
+            )
+
+        except OSError as e:
+            return ProcessingResult(
+                success=False,
+                file=file,
+                processing_time=perf_counter() - file_start_time,
+                message=f"   ❌ Moving file failed: {e}",
+            )
+
     # main function
     def organize_photos(
         self,
-        source_folder: str | Path,
-        destination_folder: str | Path,
+        source_folder: Path,
+        destination_folder: Path,
         sort_by_day: bool = False,
         remove_empty: bool = True,
         progress_callback=None,
@@ -353,6 +451,22 @@ class PhotoOrganizer:
             remove_confirmation_callback: Optional callback for file removal confirmation
         """
 
+        def _update_progress():
+            if progress_callback:
+                progress_callback(
+                    self.processed_files,
+                    self.total_files,
+                    self.failed_count,
+                    self.estimated_time_remaining,
+                )
+
+        def _is_valid_file(file: Path) -> bool:
+            """Check if file should be processed."""
+            unsupported_file_format = file.suffix.lower() not in self.SUPPORTED_EXTENSIONS
+            hidden_or_temp_file = file.name.startswith((".", "~$"))
+
+            return not (unsupported_file_format or hidden_or_temp_file)
+
         # Get source path and start timing
         source_path = Path(source_folder)
         global_start_time = perf_counter()
@@ -360,31 +474,17 @@ class PhotoOrganizer:
         if log_callback:
             log_callback("🔍 Scanning source folder for files...")
 
-        def is_valid_file(file: Path) -> bool:
-            """Check if file should be processed."""
-            unsupported_file_format = file.suffix.lower() not in self.SUPPORTED_EXTENSIONS
-            hidden_or_temp_file = file.name.startswith((".", "~$"))
-
-            return not (unsupported_file_format or hidden_or_temp_file)
-
         # Get list of files to process using list comprehension
         files_to_process = []
         for root, _, files in os.walk(source_path):
             for file in files:
                 file_path = Path(root) / file
-                if is_valid_file(file_path):
+                if _is_valid_file(file_path):
                     files_to_process.append(file_path)
 
-        # Update total files count
         self.total_files = len(files_to_process)
 
-        if progress_callback:
-            progress_callback(
-                self.processed_files,
-                self.total_files,
-                self.failed_count,
-                self.estimated_time_remaining,
-            )
+        _update_progress()
 
         # start processing files
         if log_callback:
@@ -409,113 +509,34 @@ class PhotoOrganizer:
                 log_callback(" • No files found to process.")
             return
 
-        # Process each file
-        for file in files_to_process:
-            # Start timing for this file, only used if file is processed
-            file_start_time = perf_counter()
-            if log_callback:
-                log_callback(f" • Processing: {file.name}")
-
-            # Check if file has a valid date
-            try:
-                ext = file.suffix.lower()
-                if ext in self.IMAGE_EXTENSIONS:
-                    file_date = self.get_image_date(file)
-                elif ext in self.VIDEO_EXTENSIONS:
-                    file_date = self.get_video_date(file)
-                else:
-                    logging.warning("Unsupported file type for date extraction: %s", file.name)
-                    file_date = None        
-                if file_date:
-                    # Create the new folder structure based on the date
-                    # Format folder structure based on sort_by_day option
-                    if sort_by_day:
-                        date_folder = file_date.strftime("%Y/%m/%d")
-                    else:
-                        date_folder = file_date.strftime("%Y/%m")
-
-                    # Create full destination path
-                    file_new_path = Path(destination_folder) / date_folder
-
-                    # Create all necessary directories
-                    file_new_path.mkdir(parents=True, exist_ok=True)
-
-                    # Generate new file path, handling duplicates
-
-                    new_file_path = file_new_path / file.name
-                    if new_file_path.exists():
-                        self.processed_files += 1
-                        if progress_callback:
-                            progress_callback(
-                                self.processed_files,
-                                self.total_files,
-                                self.failed_count,
-                                self.estimated_time_remaining,
-                            )
-                        if log_callback:
-                            log_callback(
-                                f"   File {file.name} already exists in {file_new_path}, skipping."
-                            )
-                        continue
-
-                    try:
-                        # Move the file to new location
-                        shutil.move(str(file), str(new_file_path))
-                        self.processed_files += 1
-                        # Record processing time for this file
-                        file_end_time = perf_counter()
-                        file_processing_time = file_end_time - file_start_time
-                        self.list_of_processing_times.append(file_processing_time)
-                        self.update_estimate_time_remaining()
-
-                        if progress_callback:
-                            progress_callback(
-                                self.processed_files,
-                                self.total_files,
-                                self.failed_count,
-                                self.estimated_time_remaining,
-                            )
-
-                        if log_callback:
-                            log_callback(f"   Moved {file.name} to {new_file_path}")
-
-                    except OSError as e:
-                        if log_callback:
-                            log_callback(f"   ❌ Failed to move {file.name}: {e}")
-                        logging.error("Failed to move %s: %s", file.name, e)
-                        self.failed_files.append(str(file))
-                        self.failed_count += 1
-
-                else:
-                    # If no date found, log and skip the file
-                    if log_callback:
-                        log_callback(f"   ❌ No date found for {file.name}")
-                    logging.warning("No date found for %s", file.name)
-
-                    self.failed_files.append(str(file))
-                    self.failed_count += 1
-                    if progress_callback:
-                        progress_callback(
-                            self.processed_files,
-                            self.total_files,
-                            self.failed_count,
-                            self.estimated_time_remaining,
-                        )
-
-            except OSError as e:
-                if log_callback:
-                    log_callback(f"   ❌ Failed to get date for {file.name}: {e}")
-                logging.error("Failed to get date for %s: %s", file.name, e)
-                self.failed_files.append(str(file))
-                self.failed_count += 1
-                if progress_callback:
-                    progress_callback(
-                        self.processed_files,
-                        self.total_files,
-                        self.failed_count,
-                        self.estimated_time_remaining,
+        with ThreadPoolExecutor() as executor:
+            futures = [
+                executor.submit(self.process_file, file, destination_folder, sort_by_day)
+                for file in files_to_process
+            ]
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                except Exception as e:
+                    logging.error(f"Error occurred while processing a file: {e}")
+                    result = ProcessingResult(
+                        success=False,
+                        file=Path("Unknown"),
+                        processing_time=0.0,
+                        message=f"   ❌ Exception occurred: {e}",
                     )
-                continue
+                    
+                if result.success:
+                    self.processed_files += 1
+                    self.update_estimate_time_remaining(result.processing_time)
+                else:
+                    self.failed_files.append(str(result.file))
+                    self.failed_count += 1
+                    logging.warning(f"{result.message} for {result.file.name}")
+
+                if log_callback:
+                    log_callback(result.message)
+                _update_progress()
 
         # Calculate processing time
         total_time = perf_counter() - global_start_time
@@ -611,5 +632,3 @@ if __name__ == "__main__":
         sort_by_day=True,
         remove_empty=True,
     )
-
-    logging.info("Photo organization complete!")
