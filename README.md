@@ -31,6 +31,22 @@ Download the latest release from the [Releases](../../releases) page and run the
 </details>
 
 
+<details>
+<summary>Building from Source</summary>
+
+1. **Install PyInstaller**
+   ```bash
+   pip install pyinstaller
+   ```
+
+2. **Create executable**
+   ```bash
+   pyinstaller gui.py.spec
+   ```
+
+</details>
+
+
 ### Installation
 
 1. **Clone the repository**
