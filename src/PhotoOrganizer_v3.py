@@ -3,11 +3,11 @@
 # The GUI allows the user to select the date format for the folder names and whether it should delete empty folders after processing.
 # It is a port to Python from the powershell script PhotoOrganizer_v2/PhotoOrganizer_v2.ps1
 
-from dataclasses import dataclass, field
 import logging
 import os
 import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from time import perf_counter
@@ -19,7 +19,7 @@ from pillow_heif import register_heif_opener  # Import HEIF support for Pillow
 from pymediainfo import MediaInfo
 
 # Register HEIF opener with Pillow
-register_heif_opener(thumbnails=False)
+register_heif_opener(thumbnails=False, depth_images=False, aux_images=False, decode_threads=1)
 
 # Configure logging
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -43,7 +43,6 @@ def debug_exif_tags(exif_data):
 class ProcessingResult:
     success: bool
     file: Path
-    processing_time: float = 0.0
     message: str = ""
     destination: Path | None = None
 
@@ -89,7 +88,6 @@ class PhotoOrganizer:
         self._debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
         self.total_processing_time: float = 0.0
         self.average_time_per_file: float = 0.0
-        self.list_of_processing_times: list[float] = []
         self.estimated_time_remaining: float = -1
 
     def get_image_date(self, file: Path) -> date | None:
@@ -136,7 +134,7 @@ class PhotoOrganizer:
                 else:
                     logging.info("No EXIF data found in image: %s", file.name)
 
-        except OSError as e:
+        except (OSError, ValueError, SyntaxError, EOFError) as e:
             logging.warning("Error reading image metadata from %s: %s", file, e)
             return None
 
@@ -334,17 +332,20 @@ class PhotoOrganizer:
         logging.info("Finished cleaning up folders. Total removed: %d", removed_count)
         return removed_count
 
-    def update_estimate_time_remaining(self, new_time: float) -> None:
-        """Calculate estimated time remaining based on average processing time."""
-        self.list_of_processing_times.append(new_time)
-        if len(self.list_of_processing_times) < 10:
-            return  # Not enough data to estimate
-        if len(self.list_of_processing_times) > 500:
-            # Keep only the last 500 processing times for a rolling average
-            self.list_of_processing_times = self.list_of_processing_times[-500:]
-        average_time = sum(self.list_of_processing_times) / len(self.list_of_processing_times)
-        files_left = self.total_files - self.processed_files - self.failed_count
-        self.estimated_time_remaining = average_time * files_left
+    def update_estimate_time_remaining(self, elapsed_time: float) -> None:
+        """Estimate remaining time from the observed processing throughput.
+        
+        Args:
+            elapsed_time (float): The total elapsed time since processing started.
+        """
+        completed_files = self.processed_files + self.failed_count
+        files_left = self.total_files - completed_files
+        if completed_files == 0:
+            self.estimated_time_remaining = -1
+            return
+
+        average_wall_time_per_file = elapsed_time / completed_files
+        self.estimated_time_remaining = average_wall_time_per_file * files_left
 
     def process_file(
         self, file: Path, destination_folder: Path, sort_by_day: bool
@@ -363,7 +364,6 @@ class PhotoOrganizer:
                 return ProcessingResult(
                     success=False,
                     file=file,
-                    processing_time=perf_counter() - file_start_time,
                     message=f"   ❌ Unsupported file type {ext} for {file.name}, skipping.",
                 )
 
@@ -371,7 +371,6 @@ class PhotoOrganizer:
                 return ProcessingResult(
                     success=False,
                     file=file,
-                    processing_time=perf_counter() - file_start_time,
                     message=f"   ❌ No valid date found for {file.name}, skipping.",
                 )
 
@@ -379,7 +378,6 @@ class PhotoOrganizer:
             return ProcessingResult(
                 success=False,
                 file=file,
-                processing_time=perf_counter() - file_start_time,
                 message=f"   ❌ Error getting date: {e}",
             )
 
@@ -403,7 +401,6 @@ class PhotoOrganizer:
             return ProcessingResult(
                 success=False,
                 file=file,
-                processing_time=perf_counter() - file_start_time,
                 message=f"   ❌ File {file.name} already exists in {file_new_path}, skipping.",
                 destination=new_file_path,
             )
@@ -414,7 +411,6 @@ class PhotoOrganizer:
             return ProcessingResult(
                 success=True,
                 file=file,
-                processing_time=perf_counter() - file_start_time,
                 destination=new_file_path,
                 message=f" • Moved {file.name} to {new_file_path}",
             )
@@ -423,7 +419,6 @@ class PhotoOrganizer:
             return ProcessingResult(
                 success=False,
                 file=file,
-                processing_time=perf_counter() - file_start_time,
                 message=f"   ❌ Moving file failed: {e}",
             )
 
@@ -509,6 +504,7 @@ class PhotoOrganizer:
                 log_callback(" • No files found to process.")
             return
 
+        processing_start_time = perf_counter()
         with ThreadPoolExecutor() as executor:
             futures = [
                 executor.submit(self.process_file, file, destination_folder, sort_by_day)
@@ -522,17 +518,17 @@ class PhotoOrganizer:
                     result = ProcessingResult(
                         success=False,
                         file=Path("Unknown"),
-                        processing_time=0.0,
                         message=f"   ❌ Exception occurred: {e}",
                     )
-                    
+
                 if result.success:
                     self.processed_files += 1
-                    self.update_estimate_time_remaining(result.processing_time)
                 else:
                     self.failed_files.append(str(result.file))
                     self.failed_count += 1
                     logging.warning(f"{result.message} for {result.file.name}")
+
+                self.update_estimate_time_remaining(perf_counter() - processing_start_time)
 
                 if log_callback:
                     log_callback(result.message)
